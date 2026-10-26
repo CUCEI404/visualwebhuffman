@@ -1,462 +1,278 @@
-<!DOCTYPE HTML>
-<html>
-    <head>
-        <title>Visualizador - Animación</title>
-        <meta charset="utf-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
-        <link rel="stylesheet" href="assets/css/main.css" />
-        <style>
-            .bar {
-                transition: height 0.1s ease, background-color 0.1s ease; 
-            }
-        </style>
-    </head>
-    <body class="no-sidebar is-preload">
-        <div id="page-wrapper">
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Animación de algoritmos</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<link rel="stylesheet" href="estilos.css">
+</head>
+<body>
 
-            <!-- Header -->
-                <section id="header">
-                    <div class="container">
-                        <h1 id="logo"><a href="index.html">Visualizador Web</a></h1>
-                        <p>Análisis de Algoritmos - Proyecto Integrador</p>
+<header class="top">
+  <div class="wrap">
+    <div>
+      <h1>Análisis de Algoritmos</h1>
+      <p>Realizado por el Equipo 404</p>
+    </div>
+    <nav aria-label="Secciones">
+      <a href="index.html">Huffman</a>
+      <a href="animacion.html" aria-current="page">Animación</a>
+    </nav>
+  </div>
+</header>
 
-                        <!-- Nav -->
-                            <nav id="nav">
-                                <ul>
-                                    <li><a class="icon solid fa-home" href="index.html"><span>Inicio</span></a></li>
-                                    <li>
-                                        <a href="#" class="icon fa-chart-bar"><span>Algoritmos O(n²)</span></a>
-                                        <ul>
-                                            <li><a href="animacion.html?algo=bubble">Bubble Sort</a></li>
-                                            <li><a href="animacion.html?algo=selection">Selection Sort</a></li>
-                                            <li><a href="animacion.html?algo=insertion">Insertion Sort</a></li>
-                                            <li><a href="animacion.html?algo=gnome">Gnome Sort</a></li>
-                                            <li><a href="animacion.html?algo=exchange">Exchange Sort</a></li>
-                                            <li><a href="animacion.html?algo=stooge">Stooge Sort</a></li>
-                                        </ul>
-                                    </li>
-                                    <li>
-                                        <a href="#" class="icon fa-layer-group"><span>Algoritmos O(n log n)</span></a>
-                                        <ul>
-                                            <li><a href="animacion.html?algo=merge">Merge Sort</a></li>
-                                            <li><a href="animacion.html?algo=quick">Quick Sort</a></li>
-                                        </ul>
-                                    </li>
-                                </ul>
-                            </nav>
-                    </div>
-                </section>
+<div class="wrap">
+<main>
 
-            <!-- Main Content -->
-                <section id="main">
-                    <div class="container">
-                        <div id="content">
-                                <article class="box post">
-                                    <header style="text-align: center; margin-bottom: 2em;">
-                                        <!-- Títulos dinámicos controlados por JavaScript -->
-                                        <h2 id="animTitle"><strong>Cargando Algoritmo...</strong></h2>
-                                        <p id="animDesc">Preparando visualización</p>
-                                    </header>
-                                    
-                                    <div id="visualizer" style="display: flex; align-items: flex-end; justify-content: center; height: 350px; gap: 4px; background: #f9f9f9; padding: 1em; border-radius: 8px; border: 1px solid #ddd;">
-                                        <!-- Las barras se generarán aquí -->
-                                    </div>
+  <section id="ordenamiento" class="card">
+    <h2 class="title" style="margin-top:0">Comparativa en vivo: algoritmos de ordenamiento</h2>
+    <p class="sub" style="margin-bottom:16px">Selecciona uno o varios algoritmos y presiona «Ejecutar pruebas». Se mide el tiempo con arreglos aleatorios de distintos tamaños.</p>
 
-                                    <div style="display: flex; flex-wrap: wrap; justify-content: center; gap: 1em; margin-top: 2em;">
-                                        <button id="animBtn" class="button">Ejecutar Algoritmo</button>
-                                        <button id="resetAnimBtn" class="button alt icon solid fa-sync">Generar Nuevos Datos</button>
-                                    </div>
-                                </article>
-                        </div>
-                    </div>
-                </section>
-        </div>
+    <div class="algos" id="algoSelector">
+      <label><input type="checkbox" class="algo-checkbox" value="bubble" checked> Bubble Sort</label>
+      <label><input type="checkbox" class="algo-checkbox" value="selection" checked> Selection Sort</label>
+      <label><input type="checkbox" class="algo-checkbox" value="insertion" checked> Insertion Sort</label>
+      <label><input type="checkbox" class="algo-checkbox" value="gnome" checked> Gnome Sort</label>
+      <label><input type="checkbox" class="algo-checkbox" value="exchange" checked> Exchange Sort</label>
+      <label><input type="checkbox" class="algo-checkbox" value="stooge" checked> Stooge Sort</label>
+      <label><input type="checkbox" class="algo-checkbox" value="merge" checked> Merge Sort</label>
+      <label><input type="checkbox" class="algo-checkbox" value="quick" checked> Quick Sort</label>
+    </div>
 
-        <!-- Scripts -->
-        <script src="assets/js/jquery.min.js"></script>
-        <script src="assets/js/jquery.dropotron.min.js"></script>
-        <script src="assets/js/browser.min.js"></script>
-        <script src="assets/js/breakpoints.min.js"></script>
-        <script src="assets/js/util.js"></script>
-        <script src="assets/js/main.js"></script>
+    <div class="chartbox"><canvas id="sortChart" width="400" height="240"></canvas></div>
 
-        <!-- LÓGICA DEL VISUALIZADOR DINÁMICO -->
-        <script>
-            let animSpeed = 80; 
-            const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
-            let currentAnimArray = [];
+    <div class="actions">
+      <button id="runBtn" class="btn" type="button">Ejecutar pruebas</button>
+      <span class="msg" id="statusText" style="margin-top:0" role="status" aria-live="polite">Presiona el botón para iniciar.</span>
+    </div>
+    <p class="hint">Stooge Sort se prueba solo hasta 1000 elementos porque con más tarda demasiado.</p>
+  </section>
+</main>
+</div>
 
-            function drawArray(arr) {
-                const container = document.getElementById("visualizer");
-                container.innerHTML = ''; 
-                arr.forEach(value => {
-                    const bar = document.createElement("div");
-                    bar.classList.add("bar");
-                    bar.style.height = `${value}px`;
-                    bar.style.width = "30px";
-                    bar.style.backgroundColor = "#41b3a3"; 
-                    container.appendChild(bar);
-                });
-            }
+<script>
+function bubbleSort(arr) {
+  let a = [...arr];
+  let len = a.length;
+  for (let i = 0; i < len; i++) {
+    for (let j = 0; j < len - i - 1; j++) {
+      if (a[j] > a[j + 1]) {
+        let temp = a[j];
+        a[j] = a[j + 1];
+        a[j + 1] = temp;
+      }
+    }
+  }
+  return a;
+}
 
-            function resetVisualizerData() {
-                currentAnimArray = Array.from({ length: 25 }, () => Math.floor(Math.random() * 300) + 20);
-                drawArray(currentAnimArray);
-            }
+function selectionSort(arr) {
+  let a = [...arr];
+  let len = a.length;
+  for (let i = 0; i < len; i++) {
+    let min = i;
+    for (let j = i + 1; j < len; j++) {
+      if (a[j] < a[min]) min = j;
+    }
+    if (min !== i) {
+      let temp = a[i];
+      a[i] = a[min];
+      a[min] = temp;
+    }
+  }
+  return a;
+}
 
-            // 1. Bubble Sort
-            async function animatedBubbleSort(arr) {
-                let bars = document.getElementById("visualizer").children;
-                let localArr = [...arr];
-                let n = localArr.length;
+function insertionSort(arr) {
+  let a = [...arr];
+  for (let i = 1; i < a.length; i++) {
+    let key = a[i];
+    let j = i - 1;
+    while (j >= 0 && a[j] > key) {
+      a[j + 1] = a[j];
+      j = j - 1;
+    }
+    a[j + 1] = key;
+  }
+  return a;
+}
 
-                for (let i = 0; i < n; i++) {
-                    for (let j = 0; j < n - i - 1; j++) {
-                        bars[j].style.backgroundColor = "#ed5050";
-                        bars[j + 1].style.backgroundColor = "#eebb4d";
-                        await sleep(animSpeed);
+function gnomeSort(arr) {
+  let a = [...arr];
+  let i = 0;
+  let n = a.length;
+  while (i < n) {
+    if (i === 0 || a[i] >= a[i - 1]) {
+      i++;
+    } else {
+      let temp = a[i];
+      a[i] = a[i - 1];
+      a[i - 1] = temp;
+      i--;
+    }
+  }
+  return a;
+}
 
-                        if (localArr[j] > localArr[j + 1]) {
-                            let temp = localArr[j];
-                            localArr[j] = localArr[j + 1];
-                            localArr[j + 1] = temp;
-                            bars[j].style.height = `${localArr[j]}px`;
-                            bars[j + 1].style.height = `${localArr[j + 1]}px`;
-                            await sleep(animSpeed);
-                        }
-                        bars[j].style.backgroundColor = "#41b3a3";
-                        bars[j + 1].style.backgroundColor = "#41b3a3";
-                    }
-                }
-            }
+function exchange_sort(lista) {
+  let arr = [...lista];
+  let n = arr.length;
+  for (let i = 0; i < n - 1; i++) {
+    for (let j = i + 1; j < n; j++) {
+      if (arr[j] < arr[i]) {
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+    }
+  }
+  return arr;
+}
 
-            // 2. Selection Sort
-            async function animatedSelectionSort(arr) {
-                let bars = document.getElementById("visualizer").children;
-                let localArr = [...arr];
-                let n = localArr.length;
+function stooge_sort_rec(arr, l, h) {
+  if (l >= h) return;
+  if (arr[l] > arr[h]) [arr[l], arr[h]] = [arr[h], arr[l]];
+  if (h - l + 1 > 2) {
+    let t = Math.floor((h - l + 1) / 3);
+    stooge_sort_rec(arr, l, h - t);
+    stooge_sort_rec(arr, l + t, h);
+    stooge_sort_rec(arr, l, h - t);
+  }
+}
 
-                for (let i = 0; i < n; i++) {
-                    let minIdx = i;
-                    bars[minIdx].style.backgroundColor = "#ed5050";
+function stooge_sort(lista) {
+  let arr = [...lista];
+  stooge_sort_rec(arr, 0, arr.length - 1);
+  return arr;
+}
 
-                    for (let j = i + 1; j < n; j++) {
-                        bars[j].style.backgroundColor = "#eebb4d";
-                        await sleep(animSpeed);
+function merge_sort(lista) {
+  let arr = [...lista];
+  if (arr.length <= 1) return arr;
+  let mid = Math.floor(arr.length / 2);
+  let izq = merge_sort(arr.slice(0, mid));
+  let der = merge_sort(arr.slice(mid));
+  return merge(izq, der);
+}
 
-                        if (localArr[j] < localArr[minIdx]) {
-                            bars[minIdx].style.backgroundColor = "#41b3a3";
-                            minIdx = j;
-                            bars[minIdx].style.backgroundColor = "#ed5050";
-                        } else {
-                            bars[j].style.backgroundColor = "#41b3a3";
-                        }
-                    }
+function merge(izq, der) {
+  let resultado = [], i = 0, j = 0;
+  while (i < izq.length && j < der.length) {
+    if (izq[i] <= der[j]) { resultado.push(izq[i]); i++; }
+    else { resultado.push(der[j]); j++; }
+  }
+  return resultado.concat(izq.slice(i)).concat(der.slice(j));
+}
 
-                    if (minIdx !== i) {
-                        let temp = localArr[i];
-                        localArr[i] = localArr[minIdx];
-                        localArr[minIdx] = temp;
-                        bars[i].style.height = `${localArr[i]}px`;
-                        bars[minIdx].style.height = `${localArr[minIdx]}px`;
-                        await sleep(animSpeed);
-                    }
-                    bars[minIdx].style.backgroundColor = "#41b3a3";
-                    bars[i].style.backgroundColor = "#41b3a3";
-                }
-            }
+function quickSort(arr) {
+  let a = [...arr];
 
-            // 3. Insertion Sort
-            async function animatedInsertionSort(arr) {
-                let bars = document.getElementById("visualizer").children;
-                let localArr = [...arr]; 
-                
-                for (let i = 1; i < localArr.length; i++) {
-                    let clave = localArr[i];
-                    let j = i - 1;
-                    bars[i].style.backgroundColor = "#ed5050"; 
-                    await sleep(animSpeed); 
+  function quickSortHelper(l, h) {
+    if (l >= h) return;
+    let pivot = a[h];
+    let i = l - 1;
+    for (let j = l; j < h; j++) {
+      if (a[j] < pivot) {
+        i++;
+        [a[i], a[j]] = [a[j], a[i]];
+      }
+    }
+    [a[i + 1], a[h]] = [a[h], a[i + 1]];
+    let pi = i + 1;
 
-                    while (j >= 0 && localArr[j] > clave) {
-                        bars[j].style.backgroundColor = "#eebb4d"; 
-                        localArr[j + 1] = localArr[j];
-                        bars[j + 1].style.height = `${localArr[j + 1]}px`; 
-                        await sleep(animSpeed); 
-                        bars[j].style.backgroundColor = "#41b3a3"; 
-                        j -= 1;
-                    }
-                    localArr[j + 1] = clave;
-                    bars[j + 1].style.height = `${clave}px`;
-                    bars[i].style.backgroundColor = "#41b3a3";
-                }
-            }
+    quickSortHelper(l, pi - 1);
+    quickSortHelper(pi + 1, h);
+  }
 
-            // 4. Gnome Sort
-            async function animatedGnomeSort(arr) {
-                let bars = document.getElementById("visualizer").children;
-                let localArr = [...arr];
-                let i = 0;
-                let n = localArr.length;
-                
-                while (i < n) {
-                    bars[i].style.backgroundColor = "#ed5050"; 
-                    await sleep(animSpeed);
-                    
-                    if (i === 0 || localArr[i] >= localArr[i - 1]) {
-                        bars[i].style.backgroundColor = "#41b3a3";
-                        i += 1;
-                    } else {
-                        bars[i - 1].style.backgroundColor = "#eebb4d"; 
-                        let temp = localArr[i];
-                        localArr[i] = localArr[i - 1];
-                        localArr[i - 1] = temp;
-                        bars[i].style.height = `${localArr[i]}px`;
-                        bars[i - 1].style.height = `${localArr[i - 1]}px`;
-                        await sleep(animSpeed);
-                        bars[i].style.backgroundColor = "#41b3a3";
-                        bars[i - 1].style.backgroundColor = "#41b3a3";
-                        i -= 1;
-                    }
-                }
-            }
+  quickSortHelper(0, a.length - 1);
+  return a;
+}
 
-            // 5. Exchange Sort
-            async function animatedExchangeSort(arr) {
-                let bars = document.getElementById("visualizer").children;
-                let localArr = [...arr];
-                let n = localArr.length;
+const algorithms = {
+  bubble: { name: 'Bubble Sort (ms)', fn: bubbleSort, color: '#ed5050' },
+  selection: { name: 'Selection Sort (ms)', fn: selectionSort, color: '#41b3a3' },
+  insertion: { name: 'Insertion Sort (ms)', fn: insertionSort, color: '#3498db' },
+  gnome: { name: 'Gnome Sort (ms)', fn: gnomeSort, color: '#e67e22' },
+  exchange: { name: 'Exchange Sort (ms)', fn: exchange_sort, color: '#f2a541' },
+  stooge: { name: 'Stooge Sort (ms)', fn: stooge_sort, color: '#7b5ea7' },
+  merge: { name: 'Merge Sort (ms)', fn: merge_sort, color: '#5c940d' },
+  quick: { name: 'Quick Sort (ms)', fn: quickSort, color: '#16a085' }
+};
 
-                for (let i = 0; i < n - 1; i++) {
-                    bars[i].style.backgroundColor = "#ed5050";
-                    for (let j = i + 1; j < n; j++) {
-                        bars[j].style.backgroundColor = "#eebb4d";
-                        await sleep(animSpeed);
+function generateRandomArray(size) {
+  return Array.from({ length: size }, () => Math.floor(Math.random() * 10000));
+}
 
-                        if (localArr[j] < localArr[i]) {
-                            let temp = localArr[i];
-                            localArr[i] = localArr[j];
-                            localArr[j] = temp;
-                            bars[i].style.height = `${localArr[i]}px`;
-                            bars[j].style.height = `${localArr[j]}px`;
-                            await sleep(animSpeed);
-                        }
-                        bars[j].style.backgroundColor = "#41b3a3";
-                    }
-                    bars[i].style.backgroundColor = "#41b3a3";
-                }
-            }
+function measureTime(sortFn, array) {
+  const start = performance.now();
+  sortFn(array);
+  const end = performance.now();
+  return +(end - start).toFixed(2);
+}
 
-            // 6. Stooge Sort
-            async function animatedStoogeSort(arr) {
-                let bars = document.getElementById("visualizer").children;
-                let localArr = [...arr];
-                const stoogeSpeed = 10; 
+(function () {
+  const runBtn = document.getElementById('runBtn');
+  const statusText = document.getElementById('statusText');
+  const sizes = [500, 1000, 3000, 5000, 8000, 10000];
 
-                async function stooge(l, h) {
-                    if (l >= h) return;
+  if (typeof Chart === 'undefined') {
+    statusText.textContent = 'No se pudo cargar Chart.js. Revisa tu conexión a internet y recarga la página.';
+    statusText.className = 'msg err';
+    runBtn.disabled = true;
+    return;
+  }
 
-                    bars[l].style.backgroundColor = "#ed5050";
-                    bars[h].style.backgroundColor = "#eebb4d";
-                    await sleep(stoogeSpeed);
+  const chart = new Chart(document.getElementById('sortChart').getContext('2d'), {
+    type: 'line',
+    data: { labels: sizes.map(s => s + ' elem'), datasets: [] },
+    options: {
+      responsive: true,
+      plugins: { title: { display: true, text: 'Rendimiento de algoritmos' } },
+      scales: {
+        x: { title: { display: true, text: 'Cantidad de elementos' } },
+        y: { title: { display: true, text: 'Tiempo (ms)' }, beginAtZero: true }
+      }
+    }
+  });
 
-                    if (localArr[l] > localArr[h]) {
-                        let temp = localArr[l];
-                        localArr[l] = localArr[h];
-                        localArr[h] = temp;
-                        bars[l].style.height = `${localArr[l]}px`;
-                        bars[h].style.height = `${localArr[h]}px`;
-                        await sleep(stoogeSpeed);
-                    }
+  runBtn.addEventListener('click', async () => {
+    const selected = document.querySelectorAll('.algo-checkbox:checked');
+    if (selected.length === 0) {
+      statusText.textContent = 'Selecciona al menos un algoritmo.';
+      statusText.className = 'msg err';
+      return;
+    }
 
-                    bars[l].style.backgroundColor = "#41b3a3";
-                    bars[h].style.backgroundColor = "#41b3a3";
+    runBtn.disabled = true;
+    statusText.className = 'msg';
+    const activeKeys = Array.from(selected).map(cb => cb.value);
+    const data = {};
+    activeKeys.forEach(key => data[key] = []);
 
-                    if (h - l + 1 > 2) {
-                        let t = Math.floor((h - l + 1) / 3);
-                        await stooge(l, h - t);   
-                        await stooge(l + t, h);   
-                        await stooge(l, h - t);   
-                    }
-                }
+    for (const size of sizes) {
+      statusText.textContent = 'Calculando con ' + size + ' elementos…';
+      await new Promise(resolve => setTimeout(resolve, 30));
+      const randomData = generateRandomArray(size);
+      for (const key of activeKeys) {
+        // Stooge Sort se limita para evitar tiempos de espera excesivos
+        if (key === 'stooge' && size > 1000) data[key].push(null);
+        else data[key].push(measureTime(algorithms[key].fn, randomData));
+      }
+    }
 
-                await stooge(0, localArr.length - 1);
-            }
-
-            // 7. Merge Sort
-            async function animatedMergeSort(arr) {
-                let bars = document.getElementById("visualizer").children;
-                let localArr = [...arr];
-
-                async function mergeSortRec(l, r) {
-                    if (l >= r) return;
-
-                    let mid = Math.floor((l + r) / 2);
-                    await mergeSortRec(l, mid);
-                    await mergeSortRec(mid + 1, r);
-
-                    let izq = localArr.slice(l, mid + 1);
-                    let der = localArr.slice(mid + 1, r + 1);
-                    let i = 0, j = 0, k = l;
-
-                    for (let x = l; x <= r; x++) bars[x].style.backgroundColor = "#eebb4d";
-
-                    while (i < izq.length && j < der.length) {
-                        bars[k].style.backgroundColor = "#ed5050";
-                        await sleep(animSpeed);
-                        if (izq[i] <= der[j]) {
-                            localArr[k] = izq[i];
-                            i++;
-                        } else {
-                            localArr[k] = der[j];
-                            j++;
-                        }
-                        bars[k].style.height = `${localArr[k]}px`;
-                        bars[k].style.backgroundColor = "#41b3a3";
-                        k++;
-                    }
-                    while (i < izq.length) {
-                        localArr[k] = izq[i];
-                        bars[k].style.height = `${localArr[k]}px`;
-                        bars[k].style.backgroundColor = "#41b3a3";
-                        i++; k++;
-                        await sleep(animSpeed);
-                    }
-                    while (j < der.length) {
-                        localArr[k] = der[j];
-                        bars[k].style.height = `${localArr[k]}px`;
-                        bars[k].style.backgroundColor = "#41b3a3";
-                        j++; k++;
-                        await sleep(animSpeed);
-                    }
-                }
-
-                await mergeSortRec(0, localArr.length - 1);
-            }
-
-            // 8. Quick Sort
-            async function animatedQuickSort(arr) {
-                let bars = document.getElementById("visualizer").children;
-                let localArr = [...arr];
-
-                async function partition(low, high) {
-                    let pivot = localArr[high];
-                    bars[high].style.backgroundColor = "#ed5050";
-                    let i = low - 1;
-
-                    for (let j = low; j < high; j++) {
-                        bars[j].style.backgroundColor = "#eebb4d";
-                        await sleep(animSpeed);
-
-                        if (localArr[j] < pivot) {
-                            i++;
-                            let temp = localArr[i];
-                            localArr[i] = localArr[j];
-                            localArr[j] = temp;
-                            bars[i].style.height = `${localArr[i]}px`;
-                            bars[j].style.height = `${localArr[j]}px`;
-                            await sleep(animSpeed);
-                        }
-                        bars[j].style.backgroundColor = "#41b3a3";
-                    }
-
-                    let temp = localArr[i + 1];
-                    localArr[i + 1] = localArr[high];
-                    localArr[high] = temp;
-                    bars[i + 1].style.height = `${localArr[i + 1]}px`;
-                    bars[high].style.height = `${localArr[high]}px`;
-                    bars[high].style.backgroundColor = "#41b3a3";
-                    await sleep(animSpeed);
-
-                    return i + 1;
-                }
-
-                async function quickSortRec(low, high) {
-                    if (low < high) {
-                        let pi = await partition(low, high);
-                        await quickSortRec(low, pi - 1);
-                        await quickSortRec(pi + 1, high);
-                    }
-                }
-
-                await quickSortRec(0, localArr.length - 1);
-            }
-
-            document.addEventListener("DOMContentLoaded", () => {
-                resetVisualizerData(); 
-
-                const urlParams = new URLSearchParams(window.location.search);
-                const algo = urlParams.get('algo') || 'bubble';
-
-                const animTitle = document.getElementById('animTitle');
-                const animDesc = document.getElementById('animDesc');
-                const animBtn = document.getElementById('animBtn');
-                const resetAnimBtn = document.getElementById('resetAnimBtn');
-
-                // Configuración de interfaz según algoritmo
-                const algoConfigs = {
-                    bubble: {
-                        title: "Bubble Sort",
-                        desc: "Compara pares de elementos adyacentes y los intercambia si están en el orden incorrecto.",
-                        fn: animatedBubbleSort
-                    },
-                    selection: {
-                        title: "Selection Sort",
-                        desc: "Encuentra continuamente el elemento mínimo del subarreglo no ordenado y lo coloca al principio.",
-                        fn: animatedSelectionSort
-                    },
-                    insertion: {
-                        title: "Insertion Sort",
-                        desc: "Observa cómo cada elemento encuentra su posición correcta en la parte ya ordenada.",
-                        fn: animatedInsertionSort
-                    },
-                    gnome: {
-                        title: "Gnome Sort",
-                        desc: "Observa cómo se intercambian los elementos retrocediendo cuando es necesario.",
-                        fn: animatedGnomeSort
-                    },
-                    exchange: {
-                        title: "Exchange Sort",
-                        desc: "Observa cómo se comparan todos los pares de elementos y se intercambian si es necesario.",
-                        fn: animatedExchangeSort
-                    },
-                    stooge: {
-                        title: "Stooge Sort",
-                        desc: "Observa cómo se divide el arreglo en tercios y se ordena recursivamente.",
-                        fn: animatedStoogeSort
-                    },
-                    merge: {
-                        title: "Merge Sort",
-                        desc: "Observa cómo el arreglo se divide y se combina ordenadamente.",
-                        fn: animatedMergeSort
-                    },
-                    quick: {
-                        title: "Quick Sort",
-                        desc: "Selecciona un elemento como pivote y parte el arreglo alrededor de él.",
-                        fn: animatedQuickSort
-                    }
-                };
-
-                const currentAlgo = algoConfigs[algo] || algoConfigs['bubble'];
-
-                animTitle.innerHTML = `<strong>${currentAlgo.title}</strong>`;
-                animDesc.innerText = currentAlgo.desc;
-                animBtn.innerText = `Ejecutar ${currentAlgo.title}`;
-
-                // Asignar evento al botón de inicio
-                animBtn.addEventListener('click', async () => {
-                    animBtn.disabled = true;
-                    resetAnimBtn.disabled = true;
-
-                    await currentAlgo.fn(currentAnimArray);
-
-                    animBtn.disabled = false;
-                    resetAnimBtn.disabled = false;
-                });
-
-                resetAnimBtn.addEventListener('click', () => {
-                    resetVisualizerData();
-                });
-            });
-        </script>
-    </body>
+    chart.data.datasets = activeKeys.map(key => ({
+      label: algorithms[key].name,
+      data: data[key],
+      borderColor: algorithms[key].color,
+      backgroundColor: algorithms[key].color + '33',
+      fill: true,
+      tension: 0.3
+    }));
+    chart.update();
+    statusText.textContent = 'Prueba completada.';
+    statusText.className = 'msg ok';
+    runBtn.disabled = false;
+  });
+})();
+</script>
+</body>
 </html>

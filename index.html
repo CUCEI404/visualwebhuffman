@@ -1,315 +1,295 @@
-<!DOCTYPE HTML>
-<!--
-    Strongly Typed by HTML5 UP
-    html5up.net | @ajlkn
-    Free for personal and commercial use under the CCA 3.0 license (html5up.net/license)
--->
-<html>
-    <head>
-        <title>Strongly Typed by HTML5 UP - Sorting Benchmark</title>
-        <meta charset="utf-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
-        <link rel="stylesheet" href="assets/css/main.css" />
-        <!-- Librería Chart.js para dibujar la gráfica -->
-        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    </head>
-    <body class="homepage is-preload">
-        <div id="page-wrapper">
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Compresión Huffman</title>
+<link rel="stylesheet" href="estilos.css">
+</head>
+<body>
 
-            <!-- Header -->
-                <section id="header">
-                    <div class="container">
+<header class="top">
+  <div class="wrap">
+    <div>
+      <h1>Análisis de Algoritmos</h1>
+      <p>Realizado por el Equipo 404</p>
+    </div>
+    <nav aria-label="Secciones">
+      <a href="index.html" aria-current="page">Huffman</a>
+      <a href="animacion.html">Animación</a>
+    </nav>
+  </div>
+</header>
 
-                        <!-- Logo -->
-                            <h1 id="logo"><a href="index.html">Análisis de Algoritmos</a></h1>
-                            <p>Realizado por el Equipo 404</p>
+<div class="wrap">
+<main>
 
-                        <!-- Nav -->
-                            <nav id="nav">
-                                <ul>
-                                    <li><a class="icon solid fa-home" href="index.html"><span>Principal</span></a></li>
-                                    <li>
-                                        <a href="animacion.html" class="icon fa-chart-bar"><span>Animación</span></a>
-                                    </li>
-                                </ul>
-                            </nav>
+  <section id="huffman" class="stack">
+    <header>
+      <h2 class="title">Compresión Huffman</h2>
+      <p class="sub">Sube un archivo .txt y se comprime con el algoritmo de Huffman. Puedes bajar textos de <a href="https://www.gutenberg.org" target="_blank" rel="noopener" style="color:var(--accent)">Project Gutenberg</a> en formato «Plain Text UTF-8».</p>
+    </header>
 
-                    </div>
-                </section>
+    <div class="card">
+      <h2>1. Subir texto</h2>
+      <label class="drop" id="drop" for="fileIn">
+        <span id="dropText">Elige un archivo .txt o suéltalo aquí</span>
+        <input id="fileIn" type="file" accept=".txt,text/plain">
+      </label>
+      <div class="msg" id="msg" role="status" aria-live="polite"></div>
+    </div>
 
-            <!-- Benchmark Section -->
-                <section id="sorting-benchmark" style="padding: 4em 0; background: #f9f9f9;">
-                    <div class="container">
-                        <header style="text-align: center; margin-bottom: 2em;">
-                            <h2>Comparativa en vivo: <strong>Algoritmos de Ordenamiento</strong></h2>
-                            <p>Selecciona uno o varios algoritmos que quieres comparar y presiona "Ejecutar Pruebas".</p>
-                        </header>
-
-                        <!-- Selección múltiple de algoritmos mediante Checkboxes (8 algoritmos en total) -->
-                        <div id="algoSelector" style="display: flex; flex-wrap: wrap; justify-content: center; gap: 1.5em; margin-bottom: 2em;">
-                            <label style="cursor: pointer;"><input type="checkbox" class="algo-checkbox" value="bubble" checked> Bubble Sort</label>
-                            <label style="cursor: pointer;"><input type="checkbox" class="algo-checkbox" value="selection" checked> Selection Sort</label>
-                            <label style="cursor: pointer;"><input type="checkbox" class="algo-checkbox" value="insertion" checked> Insertion Sort</label>
-                            <label style="cursor: pointer;"><input type="checkbox" class="algo-checkbox" value="gnome" checked> Gnome Sort</label>
-                            <label style="cursor: pointer;"><input type="checkbox" class="algo-checkbox" value="exchange" checked> Exchange Sort</label>
-                            <label style="cursor: pointer;"><input type="checkbox" class="algo-checkbox" value="stooge" checked> Stooge Sort</label>
-                            <label style="cursor: pointer;"><input type="checkbox" class="algo-checkbox" value="merge" checked> Merge Sort</label>
-                            <label style="cursor: pointer;"><input type="checkbox" class="algo-checkbox" value="quick" checked> Quick Sort</label>
-                        </div>
-
-                        <div class="row aln-center">
-                            <div class="col-8 col-12-medium">
-                                <div style="background: #fff; padding: 1.5em; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
-                                    <canvas id="sortChart" width="400" height="220"></canvas>
-                                </div>
-                            </div>
-                            <div class="col-4 col-12-medium" style="display: flex; flex-direction: column; justify-content: center; gap: 1em;">
-                                <button id="runBtn" class="button icon solid fa-play" style="width: 100%;">Ejecutar Pruebas</button>
-                                <div id="statusText" style="text-align: center; font-weight: bold; color: #555;">
-                                    Presiona el botón para iniciar.
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </section>
-
+    <div class="card" id="result" hidden>
+      <h2>2. Resultado</h2>
+      <div class="stats" id="stats"></div>
+      <div class="msg" id="verify"></div>
+      <div class="actions">
+        <button class="btn" id="dlHuff" type="button">Descargar .huff</button>
+        <button class="btn ghost" id="toggle" type="button">Ver tabla de códigos</button>
+      </div>
+      <div id="tableBox" hidden>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th>Símbolo</th><th class="n">Frecuencia</th><th class="n">Bits</th><th>Código</th></tr></thead>
+            <tbody id="body"></tbody>
+          </table>
         </div>
+      </div>
+    </div>
 
-        <!-- Scripts -->
-        <script src="assets/js/jquery.min.js"></script>
-        <script src="assets/js/jquery.dropotron.min.js"></script>
-        <script src="assets/js/browser.min.js"></script>
-        <script src="assets/js/breakpoints.min.js"></script>
-        <script src="assets/js/util.js"></script>
-        <script src="assets/js/main.js"></script>
+    <div class="card">
+      <h2>3. Descomprimir</h2>
+      <label class="btn ghost" for="huffIn" style="display:inline-block;cursor:pointer">Elegir archivo .huff</label>
+      <input id="huffIn" type="file" accept=".huff" style="position:absolute;width:1px;height:1px;opacity:0">
+      <div class="msg" id="decMsg" role="status" aria-live="polite"></div>
+      <div id="decBox" hidden>
+        <div class="preview" id="decPreview"></div>
+        <div class="actions"><button class="btn" id="decDl" type="button">Descargar .txt</button></div>
+      </div>
+    </div>
+  </section>
+</main>
+</div>
 
-        <!-- Script para Algoritmos de Ordenamiento y Gráfica Dinámica -->
-        <script>
-            // Implementaciones de Algoritmos
-            function bubbleSort(arr) {
-                let a = [...arr];
-                let len = a.length;
-                for (let i = 0; i < len; i++) {
-                    for (let j = 0; j < len - i - 1; j++) {
-                        if (a[j] > a[j + 1]) {
-                            let temp = a[j];
-                            a[j] = a[j + 1];
-                            a[j + 1] = temp;
-                        }
-                    }
-                }
-                return a;
-            }
+<script>
+/* ===== Núcleo de Huffman (bytes UTF-8, códigos canónicos) ===== */
+const SYM_NAMES = { 32: '␣', 10: '↵', 13: '⏎', 9: '⇥' };
+function symLabel(b) {
+  if (SYM_NAMES[b]) return SYM_NAMES[b];
+  if (b < 32 || b === 127) return '0x' + b.toString(16).toUpperCase().padStart(2, '0');
+  if (b >= 128) return '0x' + b.toString(16).toUpperCase();
+  return String.fromCharCode(b);
+}
 
-            function selectionSort(arr) {
-                let a = [...arr];
-                let len = a.length;
-                for (let i = 0; i < len; i++) {
-                    let min = i;
-                    for (let j = i + 1; j < len; j++) {
-                        if (a[j] < a[min]) min = j;
-                    }
-                    if (min !== i) {
-                        let temp = a[i];
-                        a[i] = a[min];
-                        a[min] = temp;
-                    }
-                }
-                return a;
-            }
+function buildLengths(data) {
+  const freq = new Array(256).fill(0);
+  for (let i = 0; i < data.length; i++) freq[data[i]]++;
+  const syms = [];
+  for (let b = 0; b < 256; b++) if (freq[b]) syms.push(b);
+  const lengths = new Array(256).fill(0);
+  if (syms.length === 1) {
+    lengths[syms[0]] = 1;
+  } else if (syms.length > 1) {
+    let id = 0;
+    let nodes = syms.map(b => ({ w: freq[b], id: id++, sym: b }));
+    while (nodes.length > 1) {
+      nodes.sort((a, b) => a.w - b.w || a.id - b.id);
+      const a = nodes.shift(), b = nodes.shift();
+      nodes.push({ w: a.w + b.w, id: id++, l: a, r: b });
+    }
+    (function walk(n, d) {
+      if (n.sym !== undefined) { lengths[n.sym] = d; return; }
+      walk(n.l, d + 1); walk(n.r, d + 1);
+    })(nodes[0], 0);
+  }
+  return { freq, syms, lengths };
+}
 
-            function insertionSort(arr) {
-                let a = [...arr];
-                for (let i = 1; i < a.length; i++) {
-                    let key = a[i];
-                    let j = i - 1;
-                    while (j >= 0 && a[j] > key) {
-                        a[j + 1] = a[j];
-                        j = j - 1;
-                    }
-                    a[j + 1] = key;
-                }
-                return a;
-            }
+function canonicalBits(lengths) {
+  const order = [];
+  for (let b = 0; b < 256; b++) if (lengths[b] > 0) order.push(b);
+  order.sort((a, b) => lengths[a] - lengths[b] || a - b);
+  const table = new Array(256).fill(null);
+  let code = 0n, prev = 0;
+  order.forEach((s, i) => {
+    const len = lengths[s];
+    code = i === 0 ? 0n : (code + 1n) << BigInt(len - prev);
+    prev = len;
+    const str = code.toString(2).padStart(len, '0');
+    const arr = new Uint8Array(len);
+    for (let k = 0; k < len; k++) arr[k] = str.charCodeAt(k) - 48;
+    table[s] = arr;
+  });
+  return table;
+}
 
-            function gnomeSort(arr) {
-                let a = [...arr];
-                let i = 0;
-                let n = a.length;
-                while (i < n) {
-                    if (i === 0 || a[i] >= a[i - 1]) {
-                        i++;
-                    } else {
-                        let temp = a[i];
-                        a[i] = a[i - 1];
-                        a[i - 1] = temp;
-                        i--;
-                    }
-                }
-                return a;
-            }
+// Formato HUF1: "HUF1" | largo original (u32) | n símbolos (u16) | n × (byte, longitud) | bits
+function huffmanCompress(data) {
+  const { freq, syms, lengths } = buildLengths(data);
+  const bitsTable = canonicalBits(lengths);
+  let totalBits = 0;
+  for (const b of syms) totalBits += freq[b] * lengths[b];
+  const n = syms.length;
+  const headerSize = 10 + n * 2;
+  const out = new Uint8Array(headerSize + Math.ceil(totalBits / 8));
+  out.set([0x48, 0x55, 0x46, 0x31], 0);
+  const dv = new DataView(out.buffer);
+  dv.setUint32(4, data.length);
+  dv.setUint16(8, n);
+  let p = 10;
+  for (const b of syms) { out[p++] = b; out[p++] = lengths[b]; }
+  let cur = 0, nb = 0, o = headerSize;
+  for (let i = 0; i < data.length; i++) {
+    const bits = bitsTable[data[i]];
+    for (let k = 0; k < bits.length; k++) {
+      cur = (cur << 1) | bits[k];
+      if (++nb === 8) { out[o++] = cur; cur = 0; nb = 0; }
+    }
+  }
+  if (nb > 0) out[o] = cur << (8 - nb);
+  return { out, freq, syms, lengths, bitsTable, totalBits, headerSize };
+}
 
-            function exchange_sort(lista) {
-                let arr = [...lista];
-                let n = arr.length;
-                for (let i = 0; i < n - 1; i++) {
-                    for (let j = i + 1; j < n; j++) {
-                        if (arr[j] < arr[i]) {
-                            [arr[i], arr[j]] = [arr[j], arr[i]];
-                        }
-                    }
-                }
-                return arr;
-            }
+function huffmanDecompress(bytes) {
+  if (bytes.length < 10 || bytes[0] !== 0x48 || bytes[1] !== 0x55 || bytes[2] !== 0x46 || bytes[3] !== 0x31)
+    throw new Error('El archivo no tiene el formato HUF1.');
+  const dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  const len = dv.getUint32(4), n = dv.getUint16(8);
+  const headerSize = 10 + n * 2;
+  if (n > 256 || bytes.length < headerSize) throw new Error('Cabecera incompleta.');
+  const out = new Uint8Array(len);
+  if (len === 0) return out;
+  if (n === 0) throw new Error('Tabla de códigos vacía.');
+  const lengths = new Array(256).fill(0);
+  for (let i = 0; i < n; i++) lengths[bytes[10 + i * 2]] = bytes[11 + i * 2];
+  const bitsTable = canonicalBits(lengths);
+  const L = [-1], R = [-1], leaf = [-1];
+  for (let s = 0; s < 256; s++) {
+    const bits = bitsTable[s];
+    if (!bits) continue;
+    let node = 0;
+    for (let k = 0; k < bits.length; k++) {
+      const arr = bits[k] ? R : L;
+      if (arr[node] === -1) { arr[node] = L.length; L.push(-1); R.push(-1); leaf.push(-1); }
+      node = arr[node];
+    }
+    leaf[node] = s;
+  }
+  let node = 0, o = 0;
+  outer: for (let i = headerSize; i < bytes.length; i++) {
+    const byte = bytes[i];
+    for (let k = 7; k >= 0; k--) {
+      node = ((byte >> k) & 1) ? R[node] : L[node];
+      if (node === -1) throw new Error('Datos corruptos.');
+      if (leaf[node] !== -1) {
+        out[o++] = leaf[node]; node = 0;
+        if (o === len) break outer;
+      }
+    }
+  }
+  if (o !== len) throw new Error('Faltan datos en el archivo.');
+  return out;
+}
 
-            function stooge_sort_rec(arr, l, h) {
-                if (l >= h) return;
-                if (arr[l] > arr[h]) [arr[l], arr[h]] = [arr[h], arr[l]];
-                if (h - l + 1 > 2) {
-                    let t = Math.floor((h - l + 1) / 3);
-                    stooge_sort_rec(arr, l, h - t);
-                    stooge_sort_rec(arr, l + t, h);
-                    stooge_sort_rec(arr, l, h - t);
-                }
-            }
+/* ===== Interfaz Huffman ===== */
+const $ = (s) => document.querySelector(s);
+const fmtN = (n) => n.toLocaleString('es-MX');
+function fmtBytes(n) {
+  if (n < 1024) return n + ' B';
+  if (n < 1048576) return (n / 1024).toFixed(1) + ' KB';
+  return (n / 1048576).toFixed(2) + ' MB';
+}
+function download(name, bytes, mime) {
+  const url = URL.createObjectURL(new Blob([bytes], { type: mime }));
+  const a = document.createElement('a');
+  a.href = url; a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 3000);
+}
+function setMsg(el, text, kind) { el.textContent = text; el.className = 'msg' + (kind ? ' ' + kind : ''); }
 
-            function stooge_sort(lista) {
-                let arr = [...lista];
-                stooge_sort_rec(arr, 0, arr.length - 1);
-                return arr;
-            }
+let current = null; // { name, raw, res }
 
-            function merge_sort(lista) {
-                let arr = [...lista];
-                if (arr.length <= 1) return arr;
-                let mid = Math.floor(arr.length / 2);
-                let izq = merge_sort(arr.slice(0, mid));
-                let der = merge_sort(arr.slice(mid));
-                return merge(izq, der);
-            }
+async function handleFile(file) {
+  const msg = $('#msg');
+  if (!file) return;
+  try {
+    const raw = new Uint8Array(await file.arrayBuffer());
+    if (!raw.length) throw new Error('El archivo está vacío.');
+    const res = huffmanCompress(raw);
+    const back = huffmanDecompress(res.out);
+    const same = back.length === raw.length && back.every((v, i) => v === raw[i]);
+    current = { name: file.name.replace(/\.txt$/i, ''), raw, res };
+    $('#dropText').textContent = file.name;
+    setMsg(msg, '');
+    showResult(raw, res, same);
+  } catch (e) {
+    setMsg(msg, e.message, 'err');
+  }
+}
 
-            function merge(izq, der) {
-                let resultado = [], i = 0, j = 0;
-                while (i < izq.length && j < der.length) {
-                    if (izq[i] <= der[j]) { resultado.push(izq[i]); i++; }
-                    else { resultado.push(der[j]); j++; }
-                }
-                return resultado.concat(izq.slice(i)).concat(der.slice(j));
-            }
+function showResult(raw, res, same) {
+  $('#result').hidden = false;
+  const saving = 100 * (1 - res.out.length / raw.length);
+  const stat = (label, value, main) => `<div class="stat${main ? ' main' : ''}"><b>${value}</b><span>${label}</span></div>`;
+  $('#stats').innerHTML =
+    stat('Original', fmtBytes(raw.length)) +
+    stat('Comprimido', fmtBytes(res.out.length)) +
+    stat('Ahorro', saving.toFixed(1) + ' %', true) +
+    stat('Bits por símbolo', (res.totalBits / raw.length).toFixed(2));
+  setMsg($('#verify'), same ? 'Verificado: al descomprimir se obtiene el mismo texto.' : 'Error: el texto descomprimido no coincide.', same ? 'ok' : 'err');
 
-            function quickSort(arr) {
-                let a = [...arr];
-                
-                function quickSortHelper(l, h) {
-                    if (l >= h) return;
-                    let pivot = a[h];
-                    let i = l - 1;
-                    for (let j = l; j < h; j++) {
-                        if (a[j] < pivot) {
-                            i++;
-                            [a[i], a[j]] = [a[j], a[i]];
-                        }
-                    }
-                    [a[i + 1], a[h]] = [a[h], a[i + 1]];
-                    let pi = i + 1;
+  const rows = res.syms.slice().sort((a, b) => res.freq[b] - res.freq[a] || a - b);
+  const body = $('#body');
+  body.replaceChildren();
+  for (const b of rows) {
+    const tr = document.createElement('tr');
+    const cells = [
+      [symLabel(b), ''],
+      [fmtN(res.freq[b]), 'n'],
+      [String(res.lengths[b]), 'n'],
+      [Array.from(res.bitsTable[b]).join(''), 'c']
+    ];
+    for (const [text, cls] of cells) {
+      const td = document.createElement('td');
+      td.textContent = text;
+      if (cls) td.className = cls;
+      tr.append(td);
+    }
+    body.append(tr);
+  }
+}
 
-                    quickSortHelper(l, pi - 1);
-                    quickSortHelper(pi + 1, h);
-                }
+$('#fileIn').addEventListener('change', (e) => handleFile(e.target.files[0]));
+const drop = $('#drop');
+['dragenter', 'dragover'].forEach(t => drop.addEventListener(t, (e) => { e.preventDefault(); drop.classList.add('over'); }));
+['dragleave', 'drop'].forEach(t => drop.addEventListener(t, (e) => { e.preventDefault(); drop.classList.remove('over'); }));
+drop.addEventListener('drop', (e) => handleFile(e.dataTransfer.files[0]));
 
-                quickSortHelper(0, a.length - 1);
-                return a;
-            }
+$('#toggle').addEventListener('click', () => {
+  const box = $('#tableBox');
+  box.hidden = !box.hidden;
+  $('#toggle').textContent = box.hidden ? 'Ver tabla de códigos' : 'Ocultar tabla de códigos';
+});
+$('#dlHuff').addEventListener('click', () => current && download(current.name + '.huff', current.res.out, 'application/octet-stream'));
 
-            // Diccionario de metadatos de los 8 algoritmos
-            const algorithms = {
-                bubble: { name: 'Bubble Sort (ms)', fn: bubbleSort, color: '#ed5050' },
-                selection: { name: 'Selection Sort (ms)', fn: selectionSort, color: '#41b3a3' },
-                insertion: { name: 'Insertion Sort (ms)', fn: insertionSort, color: '#3498db' },
-                gnome: { name: 'Gnome Sort (ms)', fn: gnomeSort, color: '#e67e22' },
-                exchange: { name: 'Exchange Sort (ms)', fn: exchange_sort, color: '#f2a541' },
-                stooge: { name: 'Stooge Sort (ms)', fn: stooge_sort, color: '#7b5ea7' },
-                merge: { name: 'Merge Sort (ms)', fn: merge_sort, color: '#5c940d' },
-                quick: { name: 'Quick Sort (ms)', fn: quickSort, color: '#16a085' }
-            };
-
-            function generateRandomArray(size) {
-                return Array.from({ length: size }, () => Math.floor(Math.random() * 10000));
-            }
-
-            function measureTime(sortFn, array) {
-                const start = performance.now();
-                sortFn(array);
-                const end = performance.now();
-                return +(end - start).toFixed(2);
-            }
-
-            document.addEventListener("DOMContentLoaded", () => {
-                const ctx = document.getElementById("sortChart").getContext("2d");
-                const runBtn = document.getElementById("runBtn");
-                const statusText = document.getElementById("statusText");
-                const sizes = [500, 1000, 3000, 5000, 8000, 10000];
-
-                const chart = new Chart(ctx, {
-                    type: 'line',
-                    data: {
-                        labels: sizes.map(s => `${s} elem`),
-                        datasets: []
-                    },
-                    options: {
-                        responsive: true,
-                        plugins: {
-                            title: { display: true, text: 'Rendimiento de Algoritmos' }
-                        },
-                        scales: {
-                            x: { title: { display: true, text: 'Cantidad de Elementos' } },
-                            y: { title: { display: true, text: 'Tiempo (ms)' }, beginAtZero: true }
-                        }
-                    }
-                });
-
-                runBtn.addEventListener('click', async () => {
-                    const selectedCheckboxes = document.querySelectorAll('.algo-checkbox:checked');
-                    if (selectedCheckboxes.length === 0) {
-                        statusText.innerText = "Por favor selecciona al menos un algoritmo.";
-                        return;
-                    }
-
-                    runBtn.disabled = true;
-                    statusText.innerText = "Calculando tiempos...";
-
-                    const activeKeys = Array.from(selectedCheckboxes).map(cb => cb.value);
-                    const datasetsData = {};
-                    activeKeys.forEach(key => datasetsData[key] = []);
-
-                    for (let size of sizes) {
-                        await new Promise(resolve => setTimeout(resolve, 30));
-                        const randomData = generateRandomArray(size);
-
-                        for (let key of activeKeys) {
-                            // Limitar Stooge Sort para evitar tiempos de espera excesivos en arreglos grandes
-                            if (key === 'stooge' && size > 1000) {
-                                datasetsData[key].push(null);
-                            } else {
-                                datasetsData[key].push(measureTime(algorithms[key].fn, randomData));
-                            }
-                        }
-                    }
-
-                    chart.data.datasets = activeKeys.map(key => ({
-                        label: algorithms[key].name,
-                        data: datasetsData[key],
-                        borderColor: algorithms[key].color,
-                        backgroundColor: algorithms[key].color + '33',
-                        fill: true,
-                        tension: 0.3
-                    }));
-
-                    chart.update();
-                    statusText.innerText = "¡Prueba completada!";
-                    runBtn.disabled = false;
-                });
-            });
-        </script>
-    </body>
+let decoded = null, decName = 'texto';
+$('#huffIn').addEventListener('change', async (e) => {
+  const f = e.target.files[0];
+  if (!f) return;
+  const m = $('#decMsg');
+  try {
+    decoded = huffmanDecompress(new Uint8Array(await f.arrayBuffer()));
+    decName = f.name.replace(/\.huff$/i, '');
+    setMsg(m, 'Descomprimido: ' + fmtN(decoded.length) + ' bytes.', 'ok');
+    $('#decPreview').textContent = new TextDecoder('utf-8').decode(decoded.subarray(0, 1500)) + (decoded.length > 1500 ? '\n…' : '');
+    $('#decBox').hidden = false;
+  } catch (err) {
+    setMsg(m, err.message, 'err');
+    $('#decBox').hidden = true;
+  }
+});
+$('#decDl').addEventListener('click', () => decoded && download(decName + '.txt', decoded, 'text/plain;charset=utf-8'));
+</script>
+</body>
 </html>

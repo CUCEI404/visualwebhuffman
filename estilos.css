@@ -1,0 +1,72 @@
+:root {
+  --bg: #F7F8F7;
+  --surface: #FFFFFF;
+  --ink: #1D2420;
+  --muted: #667069;
+  --line: #DDE2DE;
+  --accent: #3E8E5E;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0; background: var(--bg); color: var(--ink);
+  font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+.wrap { max-width: 800px; margin: 0 auto; padding-left: 16px; padding-right: 16px; }
+.top { background: var(--surface); border-bottom: 1px solid var(--line); }
+.top .wrap { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 24px; padding-block: 18px; }
+.top h1 { font-size: 1.35rem; margin: 0; line-height: 1.2; }
+.top p { margin: 0; color: var(--muted); font-size: .9rem; }
+[hidden] { display: none !important; }
+nav { display: flex; gap: 4px; }
+nav a {
+  color: var(--muted); text-decoration: none; font-weight: 600; padding: 6px 12px; border-bottom: 3px solid transparent;
+}
+nav a:hover { color: var(--ink); }
+nav a[aria-current="page"] { color: var(--ink); border-bottom-color: var(--accent); }
+nav a:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.stack { display: flex; flex-direction: column; gap: 20px; }
+main { display: flex; flex-direction: column; gap: 20px; padding-block: 28px 56px; }
+h2 { font-size: 1.1rem; margin: 0 0 12px; }
+.title { font-size: 1.4rem; margin: 8px 0 0; }
+.sub { color: var(--muted); margin: 4px 0 0; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 20px; min-width: 0; }
+.drop {
+  display: block; text-align: center; border: 2px dashed var(--line); border-radius: 8px;
+  padding: 28px 16px; cursor: pointer; color: var(--muted);
+}
+.drop:hover, .drop.over { border-color: var(--accent); color: var(--ink); }
+.drop input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.drop:focus-within { outline: 3px solid var(--accent); outline-offset: 2px; }
+.btn {
+  background: var(--accent); color: #fff; border: 0; border-radius: 6px; padding: 9px 16px;
+  font: inherit; font-weight: 600; cursor: pointer;
+}
+.btn.ghost { background: transparent; color: var(--accent); border: 1px solid var(--accent); }
+.btn:hover { filter: brightness(.95); }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+.btn:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 14px; }
+.stat b { display: block; font-size: 1.5rem; font-variant-numeric: tabular-nums; }
+.stat span { color: var(--muted); font-size: .88rem; }
+.stat.main b { color: var(--accent); }
+.msg { margin-top: 12px; color: var(--muted); overflow-wrap: anywhere; }
+.msg.ok { color: var(--accent); }
+.msg.err { color: #B3261E; }
+.hint { color: var(--muted); font-size: .9rem; margin-top: 10px; }
+.actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 14px; }
+.tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 6px; margin-top: 8px; }
+table { border-collapse: collapse; width: 100%; font-size: .92rem; }
+th, td { text-align: left; padding: 7px 12px; border-bottom: 1px solid var(--line); }
+th { color: var(--muted); font-weight: 500; background: var(--bg); white-space: nowrap; }
+tr:last-child td { border-bottom: 0; }
+td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; }
+td.c { font-family: ui-monospace, Menlo, Consolas, monospace; word-break: break-all; }
+.preview {
+  font: .88rem/1.5 ui-monospace, Menlo, Consolas, monospace; background: var(--bg); border: 1px solid var(--line);
+  border-radius: 6px; padding: 10px 12px; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 180px; overflow: auto; margin-top: 10px;
+}
+.algos { display: flex; flex-wrap: wrap; gap: 8px 20px; margin-bottom: 16px; }
+.algos label { cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+.algos input { width: 17px; height: 17px; accent-color: var(--accent); }
+.chartbox { position: relative; width: 100%; }

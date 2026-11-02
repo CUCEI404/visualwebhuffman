@@ -1,0 +1,363 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Compresión Huffman</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=DM+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="estilos.css">
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <div>
+      <h1>Análisis de Algoritmos</h1>
+      <p>Realizado por el Equipo 404</p>
+    </div>
+    <nav aria-label="Secciones">
+      <a href="index.html" aria-current="page">Huffman</a>
+      <a href="animacion.html">Animación</a>
+    </nav>
+  </div>
+</header>
+
+<section class="hero">
+  <div class="wrap hero-inner">
+    <div class="hero-text">
+      <p class="eyebrow">David Huffman · 1952</p>
+      <h2>Compresión Huffman</h2>
+      <p class="lead">Las letras más comunes reciben códigos cortos y las raras, códigos largos. Sube un .txt y mira cuánto se ahorra. Puedes bajar libros de <a href="https://www.gutenberg.org" target="_blank" rel="noopener">Project Gutenberg</a> en formato «Plain Text UTF-8».</p>
+    </div>
+    <svg class="tree" viewBox="0 0 280 200" role="img" aria-label="Árbol de Huffman: e vale 0, a vale 10, t vale 110, o vale 111">
+      <line class="ln" pathLength="1" style="--d:.3s" x1="140" y1="22" x2="80" y2="72"/>
+      <line class="ln" pathLength="1" style="--d:.45s" x1="140" y1="22" x2="200" y2="72"/>
+      <line class="ln" pathLength="1" style="--d:.9s" x1="200" y1="72" x2="160" y2="124"/>
+      <line class="ln" pathLength="1" style="--d:1.05s" x1="200" y1="72" x2="240" y2="124"/>
+      <line class="ln" pathLength="1" style="--d:1.5s" x1="240" y1="124" x2="215" y2="176"/>
+      <line class="ln" pathLength="1" style="--d:1.65s" x1="240" y1="124" x2="265" y2="176"/>
+      <circle class="node lf" style="--d:0s" cx="140" cy="22" r="11"/>
+      <circle class="node lf" style="--d:.7s" cx="200" cy="72" r="11"/>
+      <circle class="node lf" style="--d:1.3s" cx="240" cy="124" r="11"/>
+      <g class="lf" style="--d:.8s"><circle class="leafc" cx="80" cy="72" r="14"/><text class="sym" x="80" y="72">e</text></g>
+      <g class="lf" style="--d:1.35s"><circle class="leafc" cx="160" cy="124" r="14"/><text class="sym" x="160" y="124">a</text></g>
+      <g class="lf" style="--d:1.9s"><circle class="leafc" cx="215" cy="176" r="14"/><text class="sym" x="215" y="176">t</text></g>
+      <g class="lf" style="--d:2s"><circle class="leafc" cx="265" cy="176" r="14"/><text class="sym" x="265" y="176">o</text></g>
+      <text class="bt" style="--d:.6s" x="102" y="38">0</text>
+      <text class="bt" style="--d:.7s" x="178" y="38">1</text>
+      <text class="bt" style="--d:1.2s" x="172" y="92">0</text>
+      <text class="bt" style="--d:1.3s" x="230" y="92">1</text>
+      <text class="bt" style="--d:1.8s" x="219" y="146">0</text>
+      <text class="bt" style="--d:1.9s" x="256" y="146">1</text>
+    </svg>
+  </div>
+  <div class="bitrail" aria-hidden="true"><span>0100010100100000001110110001011101001011101010111100010101100101111010000110101000101101000010101011110111101110011000100100000000100111000101001101011011111111010101110110101010011001010000101000011010100111011111001110 0100010100100000001110110001011101001011101010111100010101100101111010000110101000101101000010101011110111101110011000100100000000100111000101001101011011111111010101110110101010011001010000101000011010100111011111001110 </span></div>
+</section>
+
+<div class="wrap">
+<main>
+
+  <section id="huffman" class="stack">
+
+    <div class="card">
+      <h2>1. Subir texto</h2>
+      <label class="drop" id="drop" for="fileIn">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4M7 9l5-5 5 5M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg>
+        <span id="dropText">Elige un archivo .txt o suéltalo aquí</span>
+        <input id="fileIn" type="file" accept=".txt,text/plain">
+      </label>
+      <div class="msg" id="msg" role="status" aria-live="polite"></div>
+    </div>
+
+    <div class="card" id="result" hidden>
+      <h2>2. Resultado</h2>
+      <div class="stats" id="stats"></div>
+      <div class="cmp" id="cmp"></div>
+      <div class="msg" id="verify"></div>
+      <div class="actions">
+        <button class="btn" id="dlHuff" type="button">Descargar .huff</button>
+        <button class="btn ghost" id="toggle" type="button">Ver tabla de códigos</button>
+      </div>
+      <div id="tableBox" hidden>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th>Símbolo</th><th class="n">Frecuencia</th><th class="n">Bits</th><th>Código</th></tr></thead>
+            <tbody id="body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>3. Descomprimir</h2>
+      <label class="btn ghost" for="huffIn" style="display:inline-block;cursor:pointer">Elegir archivo .huff</label>
+      <input id="huffIn" type="file" accept=".huff" style="position:absolute;width:1px;height:1px;opacity:0">
+      <div class="msg" id="decMsg" role="status" aria-live="polite"></div>
+      <div id="decBox" hidden>
+        <div class="preview" id="decPreview"></div>
+        <div class="actions"><button class="btn" id="decDl" type="button">Descargar .txt</button></div>
+      </div>
+    </div>
+  </section>
+</main>
+</div>
+
+<script>
+/* ===== Núcleo de Huffman (bytes UTF-8, códigos canónicos) ===== */
+const SYM_NAMES = { 32: '␣', 10: '↵', 13: '⏎', 9: '⇥' };
+function symLabel(b) {
+  if (SYM_NAMES[b]) return SYM_NAMES[b];
+  if (b < 32 || b === 127) return '0x' + b.toString(16).toUpperCase().padStart(2, '0');
+  if (b >= 128) return '0x' + b.toString(16).toUpperCase();
+  return String.fromCharCode(b);
+}
+
+function buildLengths(data) {
+  const freq = new Array(256).fill(0);
+  for (let i = 0; i < data.length; i++) freq[data[i]]++;
+  const syms = [];
+  for (let b = 0; b < 256; b++) if (freq[b]) syms.push(b);
+  const lengths = new Array(256).fill(0);
+  if (syms.length === 1) {
+    lengths[syms[0]] = 1;
+  } else if (syms.length > 1) {
+    let id = 0;
+    let nodes = syms.map(b => ({ w: freq[b], id: id++, sym: b }));
+    while (nodes.length > 1) {
+      nodes.sort((a, b) => a.w - b.w || a.id - b.id);
+      const a = nodes.shift(), b = nodes.shift();
+      nodes.push({ w: a.w + b.w, id: id++, l: a, r: b });
+    }
+    (function walk(n, d) {
+      if (n.sym !== undefined) { lengths[n.sym] = d; return; }
+      walk(n.l, d + 1); walk(n.r, d + 1);
+    })(nodes[0], 0);
+  }
+  return { freq, syms, lengths };
+}
+
+function canonicalBits(lengths) {
+  const order = [];
+  for (let b = 0; b < 256; b++) if (lengths[b] > 0) order.push(b);
+  order.sort((a, b) => lengths[a] - lengths[b] || a - b);
+  const table = new Array(256).fill(null);
+  let code = 0n, prev = 0;
+  order.forEach((s, i) => {
+    const len = lengths[s];
+    code = i === 0 ? 0n : (code + 1n) << BigInt(len - prev);
+    prev = len;
+    const str = code.toString(2).padStart(len, '0');
+    const arr = new Uint8Array(len);
+    for (let k = 0; k < len; k++) arr[k] = str.charCodeAt(k) - 48;
+    table[s] = arr;
+  });
+  return table;
+}
+
+// Formato HUF1: "HUF1" | largo original (u32) | n símbolos (u16) | n × (byte, longitud) | bits
+function huffmanCompress(data) {
+  const { freq, syms, lengths } = buildLengths(data);
+  const bitsTable = canonicalBits(lengths);
+  let totalBits = 0;
+  for (const b of syms) totalBits += freq[b] * lengths[b];
+  const n = syms.length;
+  const headerSize = 10 + n * 2;
+  const out = new Uint8Array(headerSize + Math.ceil(totalBits / 8));
+  out.set([0x48, 0x55, 0x46, 0x31], 0);
+  const dv = new DataView(out.buffer);
+  dv.setUint32(4, data.length);
+  dv.setUint16(8, n);
+  let p = 10;
+  for (const b of syms) { out[p++] = b; out[p++] = lengths[b]; }
+  let cur = 0, nb = 0, o = headerSize;
+  for (let i = 0; i < data.length; i++) {
+    const bits = bitsTable[data[i]];
+    for (let k = 0; k < bits.length; k++) {
+      cur = (cur << 1) | bits[k];
+      if (++nb === 8) { out[o++] = cur; cur = 0; nb = 0; }
+    }
+  }
+  if (nb > 0) out[o] = cur << (8 - nb);
+  return { out, freq, syms, lengths, bitsTable, totalBits, headerSize };
+}
+
+function huffmanDecompress(bytes) {
+  if (bytes.length < 10 || bytes[0] !== 0x48 || bytes[1] !== 0x55 || bytes[2] !== 0x46 || bytes[3] !== 0x31)
+    throw new Error('El archivo no tiene el formato HUF1.');
+  const dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  const len = dv.getUint32(4), n = dv.getUint16(8);
+  const headerSize = 10 + n * 2;
+  if (n > 256 || bytes.length < headerSize) throw new Error('Cabecera incompleta.');
+  const out = new Uint8Array(len);
+  if (len === 0) return out;
+  if (n === 0) throw new Error('Tabla de códigos vacía.');
+  const lengths = new Array(256).fill(0);
+  for (let i = 0; i < n; i++) lengths[bytes[10 + i * 2]] = bytes[11 + i * 2];
+  const bitsTable = canonicalBits(lengths);
+  const L = [-1], R = [-1], leaf = [-1];
+  for (let s = 0; s < 256; s++) {
+    const bits = bitsTable[s];
+    if (!bits) continue;
+    let node = 0;
+    for (let k = 0; k < bits.length; k++) {
+      const arr = bits[k] ? R : L;
+      if (arr[node] === -1) { arr[node] = L.length; L.push(-1); R.push(-1); leaf.push(-1); }
+      node = arr[node];
+    }
+    leaf[node] = s;
+  }
+  let node = 0, o = 0;
+  outer: for (let i = headerSize; i < bytes.length; i++) {
+    const byte = bytes[i];
+    for (let k = 7; k >= 0; k--) {
+      node = ((byte >> k) & 1) ? R[node] : L[node];
+      if (node === -1) throw new Error('Datos corruptos.');
+      if (leaf[node] !== -1) {
+        out[o++] = leaf[node]; node = 0;
+        if (o === len) break outer;
+      }
+    }
+  }
+  if (o !== len) throw new Error('Faltan datos en el archivo.');
+  return out;
+}
+
+/* ===== Interfaz Huffman ===== */
+const $ = (s) => document.querySelector(s);
+const fmtN = (n) => n.toLocaleString('es-MX');
+function fmtBytes(n) {
+  if (n < 1024) return n + ' B';
+  if (n < 1048576) return (n / 1024).toFixed(1) + ' KB';
+  return (n / 1048576).toFixed(2) + ' MB';
+}
+function download(name, bytes, mime) {
+  const url = URL.createObjectURL(new Blob([bytes], { type: mime }));
+  const a = document.createElement('a');
+  a.href = url; a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 3000);
+}
+function setMsg(el, text, kind) { el.textContent = text; el.className = 'msg' + (kind ? ' ' + kind : ''); }
+
+
+/* Animaciones del resultado */
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+function formatStat(v, kind) {
+  if (kind === 'bytes') return fmtBytes(Math.round(v));
+  if (kind === 'pct') return v.toFixed(1) + ' %';
+  return v.toFixed(2);
+}
+function countUp() {
+  document.querySelectorAll('#stats b').forEach(el => {
+    const target = parseFloat(el.dataset.num), kind = el.dataset.kind;
+    if (reduceMotion) { el.textContent = formatStat(target, kind); return; }
+    const t0 = performance.now(), dur = 1000;
+    (function tick(now) {
+      const p = Math.min(1, (now - t0) / dur);
+      el.textContent = formatStat(target * (1 - Math.pow(1 - p, 3)), kind);
+      if (p < 1) requestAnimationFrame(tick); else el.textContent = formatStat(target, kind);
+    })(t0);
+  });
+}
+function showBars(orig, comp) {
+  const pct = Math.max(2, Math.min(100, 100 * comp / orig));
+  const row = (label, cls, text) => `<div class="cmp-row"><span>${label}</span><div class="cmp-track"><div class="cmp-fill ${cls}"></div><span class="cmp-text">${text}</span></div></div>`;
+  $('#cmp').innerHTML = row('Original', '', fmtN(orig) + ' bytes') + row('Huffman', 'small', fmtN(comp) + ' bytes');
+  const fills = document.querySelectorAll('#cmp .cmp-fill');
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    fills[0].style.width = '100%';
+    fills[1].style.width = pct + '%';
+  }));
+}
+
+let current = null; // { name, raw, res }
+
+async function handleFile(file) {
+  const msg = $('#msg');
+  if (!file) return;
+  try {
+    const raw = new Uint8Array(await file.arrayBuffer());
+    if (!raw.length) throw new Error('El archivo está vacío.');
+    const res = huffmanCompress(raw);
+    const back = huffmanDecompress(res.out);
+    const same = back.length === raw.length && back.every((v, i) => v === raw[i]);
+    current = { name: file.name.replace(/\.txt$/i, ''), raw, res };
+    $('#dropText').textContent = file.name;
+    setMsg(msg, '');
+    showResult(raw, res, same);
+  } catch (e) {
+    setMsg(msg, e.message, 'err');
+  }
+}
+
+function showResult(raw, res, same) {
+  $('#result').hidden = false;
+  const saving = 100 * (1 - res.out.length / raw.length);
+  const stat = (label, num, kind, main) => `<div class="stat${main ? ' main' : ''}"><b data-num="${num}" data-kind="${kind}">0</b><span>${label}</span></div>`;
+  $('#stats').innerHTML =
+    stat('Original', raw.length, 'bytes') +
+    stat('Comprimido', res.out.length, 'bytes') +
+    stat('Ahorro', saving, 'pct', true) +
+    stat('Bits por símbolo', res.totalBits / raw.length, 'bits');
+  countUp();
+  showBars(raw.length, res.out.length);
+  setMsg($('#verify'), same ? 'Verificado: al descomprimir se obtiene el mismo texto.' : 'Error: el texto descomprimido no coincide.', same ? 'ok' : 'err');
+
+  const rows = res.syms.slice().sort((a, b) => res.freq[b] - res.freq[a] || a - b);
+  const body = $('#body');
+  body.replaceChildren();
+  for (const b of rows) {
+    const tr = document.createElement('tr');
+    const cells = [
+      [symLabel(b), ''],
+      [fmtN(res.freq[b]), 'n'],
+      [String(res.lengths[b]), 'n'],
+      [Array.from(res.bitsTable[b]).join(''), 'c']
+    ];
+    for (const [text, cls] of cells) {
+      const td = document.createElement('td');
+      td.textContent = text;
+      if (cls) td.className = cls;
+      tr.append(td);
+    }
+    body.append(tr);
+  }
+  Array.from(body.children).forEach((tr, i) => { tr.style.animationDelay = Math.min(i, 24) * 25 + 'ms'; });
+  $('#result').scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
+}
+
+$('#fileIn').addEventListener('change', (e) => handleFile(e.target.files[0]));
+const drop = $('#drop');
+['dragenter', 'dragover'].forEach(t => drop.addEventListener(t, (e) => { e.preventDefault(); drop.classList.add('over'); }));
+['dragleave', 'drop'].forEach(t => drop.addEventListener(t, (e) => { e.preventDefault(); drop.classList.remove('over'); }));
+drop.addEventListener('drop', (e) => handleFile(e.dataTransfer.files[0]));
+
+$('#toggle').addEventListener('click', () => {
+  const box = $('#tableBox');
+  box.hidden = !box.hidden;
+  $('#toggle').textContent = box.hidden ? 'Ver tabla de códigos' : 'Ocultar tabla de códigos';
+});
+$('#dlHuff').addEventListener('click', () => current && download(current.name + '.huff', current.res.out, 'application/octet-stream'));
+
+let decoded = null, decName = 'texto';
+$('#huffIn').addEventListener('change', async (e) => {
+  const f = e.target.files[0];
+  if (!f) return;
+  const m = $('#decMsg');
+  try {
+    decoded = huffmanDecompress(new Uint8Array(await f.arrayBuffer()));
+    decName = f.name.replace(/\.huff$/i, '');
+    setMsg(m, 'Descomprimido: ' + fmtN(decoded.length) + ' bytes.', 'ok');
+    $('#decPreview').textContent = new TextDecoder('utf-8').decode(decoded.subarray(0, 1500)) + (decoded.length > 1500 ? '\n…' : '');
+    $('#decBox').hidden = false;
+  } catch (err) {
+    setMsg(m, err.message, 'err');
+    $('#decBox').hidden = true;
+  }
+});
+$('#decDl').addEventListener('click', () => decoded && download(decName + '.txt', decoded, 'text/plain;charset=utf-8'));
+</script>
+</body>
+</html>

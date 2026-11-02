@@ -1,0 +1,302 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Animación de algoritmos</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=DM+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="estilos.css">
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <div>
+      <h1>Análisis de Algoritmos</h1>
+      <p>Realizado por el Equipo 404</p>
+    </div>
+    <nav aria-label="Secciones">
+      <a href="index.html">Huffman</a>
+      <a href="animacion.html" aria-current="page">Animación</a>
+    </nav>
+  </div>
+</header>
+
+<section class="hero">
+  <div class="wrap hero-inner">
+    <div class="hero-text">
+      <p class="eyebrow">8 algoritmos · 6 tamaños</p>
+      <h2>Comparativa en vivo</h2>
+      <p class="lead">Mide cuánto tarda cada algoritmo de ordenamiento con arreglos aleatorios de 500 hasta 10 000 elementos.</p>
+    </div>
+    <div class="sortbars" aria-hidden="true"><i style="--h:0.9;--i:0"></i><i style="--h:0.35;--i:1"></i><i style="--h:0.7;--i:2"></i><i style="--h:0.2;--i:3"></i><i style="--h:1;--i:4"></i><i style="--h:0.55;--i:5"></i><i style="--h:0.8;--i:6"></i><i style="--h:0.3;--i:7"></i><i style="--h:0.65;--i:8"></i><i style="--h:0.45;--i:9"></i><i style="--h:0.95;--i:10"></i><i style="--h:0.25;--i:11"></i></div>
+  </div>
+  <div class="bitrail" aria-hidden="true"><span>0100010100100000001110110001011101001011101010111100010101100101111010000110101000101101000010101011110111101110011000100100000000100111000101001101011011111111010101110110101010011001010000101000011010100111011111001110 0100010100100000001110110001011101001011101010111100010101100101111010000110101000101101000010101011110111101110011000100100000000100111000101001101011011111111010101110110101010011001010000101000011010100111011111001110 </span></div>
+</section>
+
+<div class="wrap">
+<main>
+
+  <section id="ordenamiento" class="card">
+    <h2>Algoritmos a comparar</h2>
+    <p class="sub">Selecciona uno o varios algoritmos y presiona «Ejecutar pruebas».</p>
+
+    <div class="algos" id="algoSelector">
+      <label style="--c:#ed5050"><input type="checkbox" class="algo-checkbox" value="bubble" checked> Bubble Sort</label>
+      <label style="--c:#41b3a3"><input type="checkbox" class="algo-checkbox" value="selection" checked> Selection Sort</label>
+      <label style="--c:#3498db"><input type="checkbox" class="algo-checkbox" value="insertion" checked> Insertion Sort</label>
+      <label style="--c:#e67e22"><input type="checkbox" class="algo-checkbox" value="gnome" checked> Gnome Sort</label>
+      <label style="--c:#f2a541"><input type="checkbox" class="algo-checkbox" value="exchange" checked> Exchange Sort</label>
+      <label style="--c:#7b5ea7"><input type="checkbox" class="algo-checkbox" value="stooge" checked> Stooge Sort</label>
+      <label style="--c:#5c940d"><input type="checkbox" class="algo-checkbox" value="merge" checked> Merge Sort</label>
+      <label style="--c:#16a085"><input type="checkbox" class="algo-checkbox" value="quick" checked> Quick Sort</label>
+    </div>
+
+    <div class="chartbox"><canvas id="sortChart" width="400" height="240"></canvas></div>
+    <div class="progress" id="progress" aria-hidden="true"><div class="progress-fill" id="progressFill"></div></div>
+
+    <div class="actions">
+      <button id="runBtn" class="btn" type="button">Ejecutar pruebas</button>
+      <span class="msg" id="statusText" style="margin-top:0" role="status" aria-live="polite">Presiona el botón para iniciar.</span>
+    </div>
+    <p class="hint">Stooge Sort se prueba solo hasta 1000 elementos porque con más tarda demasiado.</p>
+  </section>
+</main>
+</div>
+
+<script>
+function bubbleSort(arr) {
+  let a = [...arr];
+  let len = a.length;
+  for (let i = 0; i < len; i++) {
+    for (let j = 0; j < len - i - 1; j++) {
+      if (a[j] > a[j + 1]) {
+        let temp = a[j];
+        a[j] = a[j + 1];
+        a[j + 1] = temp;
+      }
+    }
+  }
+  return a;
+}
+
+function selectionSort(arr) {
+  let a = [...arr];
+  let len = a.length;
+  for (let i = 0; i < len; i++) {
+    let min = i;
+    for (let j = i + 1; j < len; j++) {
+      if (a[j] < a[min]) min = j;
+    }
+    if (min !== i) {
+      let temp = a[i];
+      a[i] = a[min];
+      a[min] = temp;
+    }
+  }
+  return a;
+}
+
+function insertionSort(arr) {
+  let a = [...arr];
+  for (let i = 1; i < a.length; i++) {
+    let key = a[i];
+    let j = i - 1;
+    while (j >= 0 && a[j] > key) {
+      a[j + 1] = a[j];
+      j = j - 1;
+    }
+    a[j + 1] = key;
+  }
+  return a;
+}
+
+function gnomeSort(arr) {
+  let a = [...arr];
+  let i = 0;
+  let n = a.length;
+  while (i < n) {
+    if (i === 0 || a[i] >= a[i - 1]) {
+      i++;
+    } else {
+      let temp = a[i];
+      a[i] = a[i - 1];
+      a[i - 1] = temp;
+      i--;
+    }
+  }
+  return a;
+}
+
+function exchange_sort(lista) {
+  let arr = [...lista];
+  let n = arr.length;
+  for (let i = 0; i < n - 1; i++) {
+    for (let j = i + 1; j < n; j++) {
+      if (arr[j] < arr[i]) {
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+    }
+  }
+  return arr;
+}
+
+function stooge_sort_rec(arr, l, h) {
+  if (l >= h) return;
+  if (arr[l] > arr[h]) [arr[l], arr[h]] = [arr[h], arr[l]];
+  if (h - l + 1 > 2) {
+    let t = Math.floor((h - l + 1) / 3);
+    stooge_sort_rec(arr, l, h - t);
+    stooge_sort_rec(arr, l + t, h);
+    stooge_sort_rec(arr, l, h - t);
+  }
+}
+
+function stooge_sort(lista) {
+  let arr = [...lista];
+  stooge_sort_rec(arr, 0, arr.length - 1);
+  return arr;
+}
+
+function merge_sort(lista) {
+  let arr = [...lista];
+  if (arr.length <= 1) return arr;
+  let mid = Math.floor(arr.length / 2);
+  let izq = merge_sort(arr.slice(0, mid));
+  let der = merge_sort(arr.slice(mid));
+  return merge(izq, der);
+}
+
+function merge(izq, der) {
+  let resultado = [], i = 0, j = 0;
+  while (i < izq.length && j < der.length) {
+    if (izq[i] <= der[j]) { resultado.push(izq[i]); i++; }
+    else { resultado.push(der[j]); j++; }
+  }
+  return resultado.concat(izq.slice(i)).concat(der.slice(j));
+}
+
+function quickSort(arr) {
+  let a = [...arr];
+
+  function quickSortHelper(l, h) {
+    if (l >= h) return;
+    let pivot = a[h];
+    let i = l - 1;
+    for (let j = l; j < h; j++) {
+      if (a[j] < pivot) {
+        i++;
+        [a[i], a[j]] = [a[j], a[i]];
+      }
+    }
+    [a[i + 1], a[h]] = [a[h], a[i + 1]];
+    let pi = i + 1;
+
+    quickSortHelper(l, pi - 1);
+    quickSortHelper(pi + 1, h);
+  }
+
+  quickSortHelper(0, a.length - 1);
+  return a;
+}
+
+const algorithms = {
+  bubble: { name: 'Bubble Sort (ms)', fn: bubbleSort, color: '#ed5050' },
+  selection: { name: 'Selection Sort (ms)', fn: selectionSort, color: '#41b3a3' },
+  insertion: { name: 'Insertion Sort (ms)', fn: insertionSort, color: '#3498db' },
+  gnome: { name: 'Gnome Sort (ms)', fn: gnomeSort, color: '#e67e22' },
+  exchange: { name: 'Exchange Sort (ms)', fn: exchange_sort, color: '#f2a541' },
+  stooge: { name: 'Stooge Sort (ms)', fn: stooge_sort, color: '#7b5ea7' },
+  merge: { name: 'Merge Sort (ms)', fn: merge_sort, color: '#5c940d' },
+  quick: { name: 'Quick Sort (ms)', fn: quickSort, color: '#16a085' }
+};
+
+function generateRandomArray(size) {
+  return Array.from({ length: size }, () => Math.floor(Math.random() * 10000));
+}
+
+function measureTime(sortFn, array) {
+  const start = performance.now();
+  sortFn(array);
+  const end = performance.now();
+  return +(end - start).toFixed(2);
+}
+
+(function () {
+  const runBtn = document.getElementById('runBtn');
+  const statusText = document.getElementById('statusText');
+  const sizes = [500, 1000, 3000, 5000, 8000, 10000];
+
+  if (typeof Chart === 'undefined') {
+    statusText.textContent = 'No se pudo cargar Chart.js. Revisa tu conexión a internet y recarga la página.';
+    statusText.className = 'msg err';
+    runBtn.disabled = true;
+    return;
+  }
+
+  const chart = new Chart(document.getElementById('sortChart').getContext('2d'), {
+    type: 'line',
+    data: { labels: sizes.map(s => s + ' elem'), datasets: [] },
+    options: {
+      responsive: true,
+      animation: { duration: 900, easing: 'easeOutQuart' },
+      plugins: { title: { display: true, text: 'Rendimiento de algoritmos' } },
+      scales: {
+        x: { title: { display: true, text: 'Cantidad de elementos' } },
+        y: { title: { display: true, text: 'Tiempo (ms)' }, beginAtZero: true }
+      }
+    }
+  });
+
+  runBtn.addEventListener('click', async () => {
+    const selected = document.querySelectorAll('.algo-checkbox:checked');
+    if (selected.length === 0) {
+      statusText.textContent = 'Selecciona al menos un algoritmo.';
+      statusText.className = 'msg err';
+      return;
+    }
+
+    runBtn.disabled = true;
+    runBtn.classList.add('busy');
+    const progress = document.getElementById('progress'), fill = document.getElementById('progressFill');
+    fill.style.width = '0%';
+    progress.classList.add('on');
+    statusText.className = 'msg';
+    const activeKeys = Array.from(selected).map(cb => cb.value);
+    const data = {};
+    activeKeys.forEach(key => data[key] = []);
+
+    for (const [si, size] of sizes.entries()) {
+      statusText.textContent = 'Calculando con ' + size + ' elementos…';
+      await new Promise(resolve => setTimeout(resolve, 30));
+      const randomData = generateRandomArray(size);
+      for (const key of activeKeys) {
+        // Stooge Sort se limita para evitar tiempos de espera excesivos
+        if (key === 'stooge' && size > 1000) data[key].push(null);
+        else data[key].push(measureTime(algorithms[key].fn, randomData));
+      }
+      fill.style.width = ((si + 1) / sizes.length * 100) + '%';
+    }
+
+    chart.data.datasets = activeKeys.map(key => ({
+      label: algorithms[key].name,
+      data: data[key],
+      borderColor: algorithms[key].color,
+      backgroundColor: algorithms[key].color + '33',
+      fill: true,
+      tension: 0.3
+    }));
+    chart.update();
+    statusText.textContent = 'Prueba completada.';
+    statusText.className = 'msg ok';
+    runBtn.disabled = false;
+    runBtn.classList.remove('busy');
+    setTimeout(() => progress.classList.remove('on'), 700);
+  });
+})();
+</script>
+</body>
+</html>

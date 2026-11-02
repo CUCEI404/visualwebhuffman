@@ -4,6 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Compresión Huffman</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=DM+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="estilos.css">
 </head>
 <body>
@@ -21,18 +24,47 @@
   </div>
 </header>
 
+<section class="hero">
+  <div class="wrap hero-inner">
+    <div class="hero-text">
+      <p class="eyebrow">David Huffman · 1952</p>
+      <h2>Compresión Huffman</h2>
+      <p class="lead">Las letras más comunes reciben códigos cortos y las raras, códigos largos. Sube un .txt y mira cuánto se ahorra. Puedes bajar libros de <a href="https://www.gutenberg.org" target="_blank" rel="noopener">Project Gutenberg</a> en formato «Plain Text UTF-8».</p>
+    </div>
+    <svg class="tree" viewBox="0 0 280 200" role="img" aria-label="Árbol de Huffman: e vale 0, a vale 10, t vale 110, o vale 111">
+      <line class="ln" pathLength="1" style="--d:.3s" x1="140" y1="22" x2="80" y2="72"/>
+      <line class="ln" pathLength="1" style="--d:.45s" x1="140" y1="22" x2="200" y2="72"/>
+      <line class="ln" pathLength="1" style="--d:.9s" x1="200" y1="72" x2="160" y2="124"/>
+      <line class="ln" pathLength="1" style="--d:1.05s" x1="200" y1="72" x2="240" y2="124"/>
+      <line class="ln" pathLength="1" style="--d:1.5s" x1="240" y1="124" x2="215" y2="176"/>
+      <line class="ln" pathLength="1" style="--d:1.65s" x1="240" y1="124" x2="265" y2="176"/>
+      <circle class="node lf" style="--d:0s" cx="140" cy="22" r="11"/>
+      <circle class="node lf" style="--d:.7s" cx="200" cy="72" r="11"/>
+      <circle class="node lf" style="--d:1.3s" cx="240" cy="124" r="11"/>
+      <g class="lf" style="--d:.8s"><circle class="leafc" cx="80" cy="72" r="14"/><text class="sym" x="80" y="72">e</text></g>
+      <g class="lf" style="--d:1.35s"><circle class="leafc" cx="160" cy="124" r="14"/><text class="sym" x="160" y="124">a</text></g>
+      <g class="lf" style="--d:1.9s"><circle class="leafc" cx="215" cy="176" r="14"/><text class="sym" x="215" y="176">t</text></g>
+      <g class="lf" style="--d:2s"><circle class="leafc" cx="265" cy="176" r="14"/><text class="sym" x="265" y="176">o</text></g>
+      <text class="bt" style="--d:.6s" x="102" y="38">0</text>
+      <text class="bt" style="--d:.7s" x="178" y="38">1</text>
+      <text class="bt" style="--d:1.2s" x="172" y="92">0</text>
+      <text class="bt" style="--d:1.3s" x="230" y="92">1</text>
+      <text class="bt" style="--d:1.8s" x="219" y="146">0</text>
+      <text class="bt" style="--d:1.9s" x="256" y="146">1</text>
+    </svg>
+  </div>
+  <div class="bitrail" aria-hidden="true"><span>0100010100100000001110110001011101001011101010111100010101100101111010000110101000101101000010101011110111101110011000100100000000100111000101001101011011111111010101110110101010011001010000101000011010100111011111001110 0100010100100000001110110001011101001011101010111100010101100101111010000110101000101101000010101011110111101110011000100100000000100111000101001101011011111111010101110110101010011001010000101000011010100111011111001110 </span></div>
+</section>
+
 <div class="wrap">
 <main>
 
   <section id="huffman" class="stack">
-    <header>
-      <h2 class="title">Compresión Huffman</h2>
-      <p class="sub">Sube un archivo .txt y se comprime con el algoritmo de Huffman. Puedes bajar textos de <a href="https://www.gutenberg.org" target="_blank" rel="noopener" style="color:var(--accent)">Project Gutenberg</a> en formato «Plain Text UTF-8».</p>
-    </header>
 
     <div class="card">
       <h2>1. Subir texto</h2>
       <label class="drop" id="drop" for="fileIn">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4M7 9l5-5 5 5M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg>
         <span id="dropText">Elige un archivo .txt o suéltalo aquí</span>
         <input id="fileIn" type="file" accept=".txt,text/plain">
       </label>
@@ -42,6 +74,7 @@
     <div class="card" id="result" hidden>
       <h2>2. Resultado</h2>
       <div class="stats" id="stats"></div>
+      <div class="cmp" id="cmp"></div>
       <div class="msg" id="verify"></div>
       <div class="actions">
         <button class="btn" id="dlHuff" type="button">Descargar .huff</button>
@@ -208,6 +241,37 @@ function download(name, bytes, mime) {
 }
 function setMsg(el, text, kind) { el.textContent = text; el.className = 'msg' + (kind ? ' ' + kind : ''); }
 
+
+/* Animaciones del resultado */
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+function formatStat(v, kind) {
+  if (kind === 'bytes') return fmtBytes(Math.round(v));
+  if (kind === 'pct') return v.toFixed(1) + ' %';
+  return v.toFixed(2);
+}
+function countUp() {
+  document.querySelectorAll('#stats b').forEach(el => {
+    const target = parseFloat(el.dataset.num), kind = el.dataset.kind;
+    if (reduceMotion) { el.textContent = formatStat(target, kind); return; }
+    const t0 = performance.now(), dur = 1000;
+    (function tick(now) {
+      const p = Math.min(1, (now - t0) / dur);
+      el.textContent = formatStat(target * (1 - Math.pow(1 - p, 3)), kind);
+      if (p < 1) requestAnimationFrame(tick); else el.textContent = formatStat(target, kind);
+    })(t0);
+  });
+}
+function showBars(orig, comp) {
+  const pct = Math.max(2, Math.min(100, 100 * comp / orig));
+  const row = (label, cls, text) => `<div class="cmp-row"><span>${label}</span><div class="cmp-track"><div class="cmp-fill ${cls}"></div><span class="cmp-text">${text}</span></div></div>`;
+  $('#cmp').innerHTML = row('Original', '', fmtN(orig) + ' bytes') + row('Huffman', 'small', fmtN(comp) + ' bytes');
+  const fills = document.querySelectorAll('#cmp .cmp-fill');
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    fills[0].style.width = '100%';
+    fills[1].style.width = pct + '%';
+  }));
+}
+
 let current = null; // { name, raw, res }
 
 async function handleFile(file) {
@@ -231,12 +295,14 @@ async function handleFile(file) {
 function showResult(raw, res, same) {
   $('#result').hidden = false;
   const saving = 100 * (1 - res.out.length / raw.length);
-  const stat = (label, value, main) => `<div class="stat${main ? ' main' : ''}"><b>${value}</b><span>${label}</span></div>`;
+  const stat = (label, num, kind, main) => `<div class="stat${main ? ' main' : ''}"><b data-num="${num}" data-kind="${kind}">0</b><span>${label}</span></div>`;
   $('#stats').innerHTML =
-    stat('Original', fmtBytes(raw.length)) +
-    stat('Comprimido', fmtBytes(res.out.length)) +
-    stat('Ahorro', saving.toFixed(1) + ' %', true) +
-    stat('Bits por símbolo', (res.totalBits / raw.length).toFixed(2));
+    stat('Original', raw.length, 'bytes') +
+    stat('Comprimido', res.out.length, 'bytes') +
+    stat('Ahorro', saving, 'pct', true) +
+    stat('Bits por símbolo', res.totalBits / raw.length, 'bits');
+  countUp();
+  showBars(raw.length, res.out.length);
   setMsg($('#verify'), same ? 'Verificado: al descomprimir se obtiene el mismo texto.' : 'Error: el texto descomprimido no coincide.', same ? 'ok' : 'err');
 
   const rows = res.syms.slice().sort((a, b) => res.freq[b] - res.freq[a] || a - b);
@@ -258,6 +324,8 @@ function showResult(raw, res, same) {
     }
     body.append(tr);
   }
+  Array.from(body.children).forEach((tr, i) => { tr.style.animationDelay = Math.min(i, 24) * 25 + 'ms'; });
+  $('#result').scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
 }
 
 $('#fileIn').addEventListener('change', (e) => handleFile(e.target.files[0]));

@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Animación de algoritmos</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=DM+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="estilos.css">
 </head>
 <body>
@@ -22,25 +25,38 @@
   </div>
 </header>
 
+<section class="hero">
+  <div class="wrap hero-inner">
+    <div class="hero-text">
+      <p class="eyebrow">8 algoritmos · 6 tamaños</p>
+      <h2>Comparativa en vivo</h2>
+      <p class="lead">Mide cuánto tarda cada algoritmo de ordenamiento con arreglos aleatorios de 500 hasta 10 000 elementos.</p>
+    </div>
+    <div class="sortbars" aria-hidden="true"><i style="--h:0.9;--i:0"></i><i style="--h:0.35;--i:1"></i><i style="--h:0.7;--i:2"></i><i style="--h:0.2;--i:3"></i><i style="--h:1;--i:4"></i><i style="--h:0.55;--i:5"></i><i style="--h:0.8;--i:6"></i><i style="--h:0.3;--i:7"></i><i style="--h:0.65;--i:8"></i><i style="--h:0.45;--i:9"></i><i style="--h:0.95;--i:10"></i><i style="--h:0.25;--i:11"></i></div>
+  </div>
+  <div class="bitrail" aria-hidden="true"><span>0100010100100000001110110001011101001011101010111100010101100101111010000110101000101101000010101011110111101110011000100100000000100111000101001101011011111111010101110110101010011001010000101000011010100111011111001110 0100010100100000001110110001011101001011101010111100010101100101111010000110101000101101000010101011110111101110011000100100000000100111000101001101011011111111010101110110101010011001010000101000011010100111011111001110 </span></div>
+</section>
+
 <div class="wrap">
 <main>
 
   <section id="ordenamiento" class="card">
-    <h2 class="title" style="margin-top:0">Comparativa en vivo: algoritmos de ordenamiento</h2>
-    <p class="sub" style="margin-bottom:16px">Selecciona uno o varios algoritmos y presiona «Ejecutar pruebas». Se mide el tiempo con arreglos aleatorios de distintos tamaños.</p>
+    <h2>Algoritmos a comparar</h2>
+    <p class="sub">Selecciona uno o varios algoritmos y presiona «Ejecutar pruebas».</p>
 
     <div class="algos" id="algoSelector">
-      <label><input type="checkbox" class="algo-checkbox" value="bubble" checked> Bubble Sort</label>
-      <label><input type="checkbox" class="algo-checkbox" value="selection" checked> Selection Sort</label>
-      <label><input type="checkbox" class="algo-checkbox" value="insertion" checked> Insertion Sort</label>
-      <label><input type="checkbox" class="algo-checkbox" value="gnome" checked> Gnome Sort</label>
-      <label><input type="checkbox" class="algo-checkbox" value="exchange" checked> Exchange Sort</label>
-      <label><input type="checkbox" class="algo-checkbox" value="stooge" checked> Stooge Sort</label>
-      <label><input type="checkbox" class="algo-checkbox" value="merge" checked> Merge Sort</label>
-      <label><input type="checkbox" class="algo-checkbox" value="quick" checked> Quick Sort</label>
+      <label style="--c:#ed5050"><input type="checkbox" class="algo-checkbox" value="bubble" checked> Bubble Sort</label>
+      <label style="--c:#41b3a3"><input type="checkbox" class="algo-checkbox" value="selection" checked> Selection Sort</label>
+      <label style="--c:#3498db"><input type="checkbox" class="algo-checkbox" value="insertion" checked> Insertion Sort</label>
+      <label style="--c:#e67e22"><input type="checkbox" class="algo-checkbox" value="gnome" checked> Gnome Sort</label>
+      <label style="--c:#f2a541"><input type="checkbox" class="algo-checkbox" value="exchange" checked> Exchange Sort</label>
+      <label style="--c:#7b5ea7"><input type="checkbox" class="algo-checkbox" value="stooge" checked> Stooge Sort</label>
+      <label style="--c:#5c940d"><input type="checkbox" class="algo-checkbox" value="merge" checked> Merge Sort</label>
+      <label style="--c:#16a085"><input type="checkbox" class="algo-checkbox" value="quick" checked> Quick Sort</label>
     </div>
 
     <div class="chartbox"><canvas id="sortChart" width="400" height="240"></canvas></div>
+    <div class="progress" id="progress" aria-hidden="true"><div class="progress-fill" id="progressFill"></div></div>
 
     <div class="actions">
       <button id="runBtn" class="btn" type="button">Ejecutar pruebas</button>
@@ -226,6 +242,7 @@ function measureTime(sortFn, array) {
     data: { labels: sizes.map(s => s + ' elem'), datasets: [] },
     options: {
       responsive: true,
+      animation: { duration: 900, easing: 'easeOutQuart' },
       plugins: { title: { display: true, text: 'Rendimiento de algoritmos' } },
       scales: {
         x: { title: { display: true, text: 'Cantidad de elementos' } },
@@ -243,12 +260,16 @@ function measureTime(sortFn, array) {
     }
 
     runBtn.disabled = true;
+    runBtn.classList.add('busy');
+    const progress = document.getElementById('progress'), fill = document.getElementById('progressFill');
+    fill.style.width = '0%';
+    progress.classList.add('on');
     statusText.className = 'msg';
     const activeKeys = Array.from(selected).map(cb => cb.value);
     const data = {};
     activeKeys.forEach(key => data[key] = []);
 
-    for (const size of sizes) {
+    for (const [si, size] of sizes.entries()) {
       statusText.textContent = 'Calculando con ' + size + ' elementos…';
       await new Promise(resolve => setTimeout(resolve, 30));
       const randomData = generateRandomArray(size);
@@ -257,6 +278,7 @@ function measureTime(sortFn, array) {
         if (key === 'stooge' && size > 1000) data[key].push(null);
         else data[key].push(measureTime(algorithms[key].fn, randomData));
       }
+      fill.style.width = ((si + 1) / sizes.length * 100) + '%';
     }
 
     chart.data.datasets = activeKeys.map(key => ({
@@ -271,6 +293,8 @@ function measureTime(sortFn, array) {
     statusText.textContent = 'Prueba completada.';
     statusText.className = 'msg ok';
     runBtn.disabled = false;
+    runBtn.classList.remove('busy');
+    setTimeout(() => progress.classList.remove('on'), 700);
   });
 })();
 </script>

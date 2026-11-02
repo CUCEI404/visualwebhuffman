@@ -1,0 +1,233 @@
+<!DOCTYPE HTML>
+<!--
+    Strongly Typed by HTML5 UP
+    html5up.net | @ajlkn
+    Free for personal and commercial use under the CCA 3.0 license (html5up.net/license)
+-->
+<html>
+    <head>
+        <title>Visualizador Web - Inicio</title>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+        <link rel="stylesheet" href="assets/css/main.css" />
+        <!-- Librería Chart.js para dibujar la gráfica -->
+        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    </head>
+    <body class="homepage is-preload">
+        <div id="page-wrapper">
+
+            <!-- Header -->
+                <section id="header">
+                    <div class="container">
+
+                        <!-- Logo -->
+                            <h1 id="logo"><a href="index.html">Visualizador Web</a></h1>
+                            <p>Análisis de Algoritmos -Equipo 404</p>
+
+                        <!-- Nav -->
+                            <nav id="nav">
+                                <ul>
+                                    <li><a class="icon solid fa-home" href="index.html"><span>Inicio</span></a></li>
+                                    <li>
+                                        <a href="#" class="icon fa-chart-bar"><span>Algoritmos O(n²)</span></a>
+                                        <ul>
+                                            <li><a href="#">Bubble Sort</a></li>
+                                            <li><a href="#">Selection Sort</a></li>
+                                            <li><a href="animacion.html?algo=insertion">Insertion Sort</a></li>
+                                            <li><a href="animacion.html?algo=gnome">Gnome Sort</a></li>
+                                        </ul>
+                                    </li>
+                                    <li>
+                                        <a href="#" class="icon fa-layer-group"><span>Algoritmos O(n log n)</span></a>
+                                        <ul>
+                                            <li><a href="#">Merge Sort</a></li>
+                                            <li><a href="#">Quick Sort</a></li>
+                                            <li><a href="#">Heap Sort</a></li>
+                                        </ul>
+                                    </li>
+                                </ul>
+                            </nav>
+
+                    </div>
+                </section>
+
+            <!-- Benchmark Section -->
+                <section id="sorting-benchmark" style="padding: 4em 0; background: #f9f9f9;">
+                    <div class="container">
+                        <header style="text-align: center; margin-bottom: 2em;">
+                            <h2>Comparativa en vivo: <strong>Algoritmos O(n²)</strong></h2>
+                            <p>Mide los tiempos de ejecución en JavaScript según la cantidad de elementos aleatorios.</p>
+                        </header>
+
+                        <div class="row aln-center">
+                            <div class="col-8 col-12-medium">
+                                <div style="background: #fff; padding: 1.5em; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+                                    <canvas id="sortChart" width="400" height="220"></canvas>
+                                </div>
+                            </div>
+                            <div class="col-4 col-12-medium" style="display: flex; flex-direction: column; justify-content: center; gap: 1em;">
+                                <button id="runBtn" class="button icon solid fa-play" style="width: 100%;">Ejecutar Pruebas</button>
+                                <div id="statusText" style="text-align: center; font-weight: bold; color: #555;">
+                                    Presiona el botón para iniciar.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+        </div>
+
+        <!-- Scripts -->
+        <script src="assets/js/jquery.min.js"></script>
+        <script src="assets/js/jquery.dropotron.min.js"></script>
+        <script src="assets/js/browser.min.js"></script>
+        <script src="assets/js/breakpoints.min.js"></script>
+        <script src="assets/js/util.js"></script>
+        <script src="assets/js/main.js"></script>
+
+        <!-- Script integrado para lógica de Algoritmos y Grafica Chart.js -->
+        <script>
+            function bubbleSort(arr) {
+                let a = [...arr];
+                let len = a.length;
+                for (let i = 0; i < len; i++) {
+                    for (let j = 0; j < len - i - 1; j++) {
+                        if (a[j] > a[j + 1]) {
+                            let temp = a[j];
+                            a[j] = a[j + 1];
+                            a[j + 1] = temp;
+                        }
+                    }
+                }
+                return a;
+            }
+
+            function selectionSort(arr) {
+                let a = [...arr];
+                let len = a.length;
+                for (let i = 0; i < len; i++) {
+                    let min = i;
+                    for (let j = i + 1; j < len; j++) {
+                        if (a[j] < a[min]) {
+                            min = j;
+                        }
+                    }
+                    if (min !== i) {
+                        let temp = a[i];
+                        a[i] = a[min];
+                        a[min] = temp;
+                    }
+                }
+                return a;
+            }
+
+            function gnomeSort(arr) {
+                let a = [...arr];
+                let i = 0;
+                let n = a.length;
+                
+                while (i < n) {
+                    if (i === 0 || a[i] >= a[i - 1]) {
+                        i += 1;
+                    } else {
+                        let temp = a[i];
+                        a[i] = a[i - 1];
+                        a[i - 1] = temp;
+                        i -= 1;
+                    }
+                }
+                return a;
+            }
+
+            function generateRandomArray(size) {
+                return Array.from({ length: size }, () => Math.floor(Math.random() * 10000));
+            }
+
+            function measureTime(sortFn, array) {
+                const start = performance.now();
+                sortFn(array);
+                const end = performance.now();
+                return +(end - start).toFixed(2);
+            }
+
+            document.addEventListener("DOMContentLoaded", () => {
+                const ctx = document.getElementById("sortChart").getContext("2d");
+                const runBtn = document.getElementById("runBtn");
+                const statusText = document.getElementById("statusText");
+                const sizes = [1000, 3000, 5000, 8000, 10000];
+
+                const chart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: sizes.map(s => `${s} elem`),
+                        datasets: [
+                            {
+                                label: 'Bubble Sort (ms)',
+                                data: [],
+                                borderColor: '#ed5050',
+                                backgroundColor: 'rgba(237, 80, 80, 0.2)',
+                                fill: true,
+                                tension: 0.3
+                            },
+                            {
+                                label: 'Selection Sort (ms)',
+                                data: [],
+                                borderColor: '#41b3a3',
+                                backgroundColor: 'rgba(65, 179, 163, 0.2)',
+                                fill: true,
+                                tension: 0.3
+                            },
+                            {
+                                label: 'Gnome Sort (ms)',
+                                data: [],
+                                borderColor: '#eebb4d',
+                                backgroundColor: 'rgba(238, 187, 77, 0.2)',
+                                fill: true,
+                                tension: 0.3
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            title: {
+                                display: true,
+                                text: 'Rendimiento de Algoritmos O(n^2)'
+                            }
+                        },
+                        scales: {
+                            x: { title: { display: true, text: 'Cantidad de Elementos' } },
+                            y: { title: { display: true, text: 'Tiempo (ms)' }, beginAtZero: true }
+                        }
+                    }
+                });
+
+                runBtn.addEventListener('click', async () => {
+                    runBtn.disabled = true;
+                    statusText.innerText = "Calculando tiempos...";
+
+                    const bubbleTimes = [];
+                    const selectionTimes = [];
+                    const gnomeTimes = [];
+
+                    for (let size of sizes) {
+                        await new Promise(resolve => setTimeout(resolve, 40));
+                        const randomData = generateRandomArray(size);
+
+                        bubbleTimes.push(measureTime(bubbleSort, randomData));
+                        selectionTimes.push(measureTime(selectionSort, randomData));
+                        gnomeTimes.push(measureTime(gnomeSort, randomData));
+                    }
+
+                    chart.data.datasets[0].data = bubbleTimes;
+                    chart.data.datasets[1].data = selectionTimes;
+                    chart.data.datasets[2].data = gnomeTimes;
+                    chart.update();
+
+                    statusText.innerText = "¡Prueba completada!";
+                    runBtn.disabled = false;
+                });
+            });
+        </script>
+    </body>
+</html>

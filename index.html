@@ -68,6 +68,9 @@
         <span id="dropText">Elige un archivo .txt o suéltalo aquí</span>
         <input id="fileIn" type="file" accept=".txt,text/plain">
       </label>
+      <label class="or" for="textIn">O escribe una cadena de texto:</label>
+      <textarea id="textIn" rows="3" placeholder="Ejemplo: abracadabra"></textarea>
+      <div class="actions"><button class="btn" id="textBtn" type="button">Codificar cadena</button></div>
       <div class="msg" id="msg" role="status" aria-live="polite"></div>
     </div>
 
@@ -79,6 +82,11 @@
       <div class="actions">
         <button class="btn" id="dlHuff" type="button">Descargar .huff</button>
         <button class="btn ghost" id="toggle" type="button">Ver tabla de códigos</button>
+        <button class="btn ghost" id="toggleTree" type="button">Ver árbol de frecuencias</button>
+      </div>
+      <div id="treeBox" hidden>
+        <p class="msg" id="treeInfo"></p>
+        <div class="treewrap"><svg id="treeSvg" class="ftree" role="img" aria-label="Árbol de frecuencias de Huffman"></svg></div>
       </div>
       <div id="tableBox" hidden>
         <div class="tablewrap">
@@ -292,16 +300,107 @@ async function handleFile(file, note = '') {
   try {
     const raw = new Uint8Array(await file.arrayBuffer());
     if (!raw.length) throw new Error('El archivo está vacío.');
-    const res = huffmanCompress(raw);
-    const back = huffmanDecompress(res.out);
-    const same = back.length === raw.length && back.every((v, i) => v === raw[i]);
-    current = { name: file.name.replace(/\.txt$/i, ''), raw, res };
+    processBytes(raw, file.name.replace(/\.txt$/i, ''));
     $('#dropText').textContent = file.name;
     setMsg(msg, note); // aviso opcional (p. ej. "se soltaron varios archivos")
-    showResult(raw, res, same);
   } catch (e) {
     setMsg(msg, e.message, 'err');
   }
+}
+
+// Codifica una cadena escrita a mano (se pasa a bytes UTF-8, igual que un .txt)
+function handleText() {
+  const msg = $('#msg');
+  const text = $('#textIn').value;
+  if (!text) { setMsg(msg, 'Escribe algo para codificar.', 'err'); return; }
+  const raw = new TextEncoder().encode(text);
+  if (raw.length > MAX_BYTES) { setMsg(msg, `La cadena pesa ${fmtBytes(raw.length)}; el máximo es ${fmtBytes(MAX_BYTES)}.`, 'err'); return; }
+  processBytes(raw, 'cadena');
+  setMsg(msg, '');
+}
+
+// Comprime, verifica y muestra el resultado (lo usan el archivo y la cadena)
+function processBytes(raw, name) {
+  const res = huffmanCompress(raw);
+  const back = huffmanDecompress(res.out);
+  const same = back.length === raw.length && back.every((v, i) => v === raw[i]);
+  current = { name, raw, res };
+  showResult(raw, res, same);
+}
+
+/* ===== Árbol de frecuencias =====
+   Se arma a partir de la tabla de códigos: cada bit 0 va a la izquierda y cada 1 a la derecha.
+   Así el dibujo coincide exactamente con los códigos de la tabla. Cada nodo interno
+   guarda la suma de las frecuencias de las hojas que tiene debajo. */
+function buildTree(res) {
+  const root = { w: 0 };
+  for (const s of res.syms) {
+    let n = root;
+    n.w += res.freq[s];
+    for (const bit of res.bitsTable[s]) {
+      const side = bit ? 'r' : 'l';
+      n = n[side] || (n[side] = { w: 0 });
+      n.w += res.freq[s];
+    }
+    n.sym = s;
+  }
+  return root;
+}
+
+const fmtShort = (n) => n >= 1e6 ? (n / 1e6).toFixed(1) + 'M' : n >= 1e4 ? Math.round(n / 1e3) + 'k' : String(n);
+
+function drawTree(res) {
+  const GAP = 46, LEVEL = 70, PAD = 30, R = 16;
+  const root = buildTree(res);
+  let leaves = 0, depth = 0;
+  // Posición: las hojas se reparten de izquierda a derecha; cada padre queda al centro de sus hijos
+  (function place(n, d) {
+    n.y = PAD + d * LEVEL;
+    depth = Math.max(depth, d);
+    if (n.sym !== undefined) { n.x = PAD + leaves++ * GAP; return; }
+    const kids = [n.l, n.r].filter(Boolean);
+    kids.forEach(k => place(k, d + 1));
+    n.x = kids.reduce((s, k) => s + k.x, 0) / kids.length;
+  })(root, 0);
+
+  const svg = $('#treeSvg');
+  const W = PAD * 2 + (leaves - 1) * GAP, H = PAD * 2 + depth * LEVEL + 18;
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  svg.setAttribute('width', W);
+  svg.setAttribute('height', H);
+  svg.replaceChildren();
+  const NS = 'http://www.w3.org/2000/svg';
+  const el = (tag, attrs, text) => {
+    const e = document.createElementNS(NS, tag);
+    for (const k in attrs) e.setAttribute(k, attrs[k]);
+    if (text !== undefined) e.textContent = text;
+    return e;
+  };
+  const edges = el('g', {}), nodes = el('g', {});
+  (function render(n, code) {
+    for (const [side, bit] of [['l', '0'], ['r', '1']]) {
+      const c = n[side];
+      if (!c) continue;
+      edges.append(el('line', { x1: n.x, y1: n.y, x2: c.x, y2: c.y }));
+      edges.append(el('text', { class: 'bit', x: (n.x + c.x) / 2 + (bit === '0' ? -8 : 8), y: (n.y + c.y) / 2 - 4 }, bit));
+      render(c, code + bit);
+    }
+    const g = el('g', { class: n.sym !== undefined ? 'leaf' : 'inner' });
+    if (n.sym !== undefined) {
+      g.append(el('title', {}, `${symLabel(n.sym)} · frecuencia ${fmtN(n.w)} · código ${code}`));
+      g.append(el('circle', { cx: n.x, cy: n.y, r: R }));
+      const label = symLabel(n.sym);
+      g.append(el('text', { class: 'sym' + (label.length > 2 ? ' long' : ''), x: n.x, y: n.y }, label));
+      g.append(el('text', { class: 'w', x: n.x, y: n.y + R + 11 }, fmtShort(n.w)));
+    } else {
+      g.append(el('title', {}, `Nodo interno · suma ${fmtN(n.w)}`));
+      g.append(el('circle', { cx: n.x, cy: n.y, r: R }));
+      g.append(el('text', { class: 'sum', x: n.x, y: n.y }, fmtShort(n.w)));
+    }
+    nodes.append(g);
+  })(root, '');
+  svg.append(edges, nodes);
+  setMsg($('#treeInfo'), `${leaves} ${leaves === 1 ? 'hoja (símbolo distinto)' : 'hojas (símbolos distintos)'}, profundidad ${depth}. Izquierda = 0, derecha = 1. Pasa el cursor sobre una hoja para ver su código.`);
 }
 
 function showResult(raw, res, same) {
@@ -337,6 +436,7 @@ function showResult(raw, res, same) {
     body.append(tr);
   }
   Array.from(body.children).forEach((tr, i) => { tr.style.animationDelay = Math.min(i, 24) * 25 + 'ms'; });
+  drawTree(res);
   $('#result').scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
 }
 
@@ -373,6 +473,13 @@ $('#toggle').addEventListener('click', () => {
   box.hidden = !box.hidden;
   $('#toggle').textContent = box.hidden ? 'Ver tabla de códigos' : 'Ocultar tabla de códigos';
 });
+$('#toggleTree').addEventListener('click', () => {
+  const box = $('#treeBox');
+  box.hidden = !box.hidden;
+  $('#toggleTree').textContent = box.hidden ? 'Ver árbol de frecuencias' : 'Ocultar árbol de frecuencias';
+});
+$('#textBtn').addEventListener('click', handleText);
+$('#textIn').addEventListener('keydown', (e) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) handleText(); });
 $('#dlHuff').addEventListener('click', () => current && download(current.name + '.huff', current.res.out, 'application/octet-stream'));
 
 let decoded = null, decName = 'texto';

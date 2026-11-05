@@ -141,6 +141,28 @@ h2 { font-size: 1.15rem; margin: 0 0 12px; }
 .cmp-fill.small { background: linear-gradient(90deg, var(--accent), #5FB382); }
 .cmp-text { position: absolute; inset: 0; display: flex; align-items: center; padding-left: 10px; font: 500 12px var(--font-mono); color: var(--ink); }
 
+/* Cadena escrita a mano */
+.or { display: block; margin: 16px 0 6px; color: var(--muted); font-size: .92rem; }
+#textIn {
+  width: 100%; padding: 10px 12px; font: 15px/1.5 var(--font-mono); color: var(--ink);
+  background: var(--surface); border: 1px solid var(--line); border-radius: 8px; resize: vertical;
+}
+#textIn:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+
+/* Árbol de frecuencias */
+.treewrap { overflow: auto; max-height: 520px; border: 1px solid var(--line); border-radius: 8px; margin-top: 10px; background: var(--surface); }
+.ftree { display: block; margin: 0 auto; }
+.ftree line { stroke: #B9C6BE; stroke-width: 1.5; }
+.ftree text { font-family: var(--font-mono); text-anchor: middle; dominant-baseline: central; }
+.ftree .bit { fill: var(--accent-dark); font-size: 11px; font-weight: 600; }
+.ftree .inner circle { fill: var(--surface); stroke: var(--accent); stroke-width: 1.5; }
+.ftree .inner .sum { fill: var(--muted); font-size: 10px; }
+.ftree .leaf circle { fill: var(--leaf); stroke: var(--accent-dark); stroke-width: 1.5; }
+.ftree .leaf .sym { fill: #10261A; font-size: 13px; font-weight: 600; }
+.ftree .leaf .sym.long { font-size: 8.5px; }
+.ftree .leaf .w { fill: var(--muted); font-size: 10px; }
+.ftree g { cursor: default; }
+
 /* Tabla */
 .tablewrap { overflow: auto; max-height: 360px; border: 1px solid var(--line); border-radius: 8px; margin-top: 14px; }
 table { border-collapse: collapse; width: 100%; font-size: .92rem; }

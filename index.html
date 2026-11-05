@@ -274,9 +274,21 @@ function showBars(orig, comp) {
 
 let current = null; // { name, raw, res }
 
-async function handleFile(file) {
+const MAX_BYTES = 10 * 1024 * 1024; // 10 MB
+
+// Revisa que sea un .txt y que no sea demasiado grande
+function checkFile(file) {
+  const isTxt = /\.txt$/i.test(file.name) || file.type === 'text/plain';
+  if (!isTxt) return 'Solo se aceptan archivos .txt.';
+  if (file.size > MAX_BYTES) return `El archivo pesa ${fmtBytes(file.size)}; el máximo es ${fmtBytes(MAX_BYTES)}.`;
+  return '';
+}
+
+async function handleFile(file, note = '') {
   const msg = $('#msg');
   if (!file) return;
+  const error = checkFile(file);
+  if (error) { setMsg(msg, error, 'err'); return; }
   try {
     const raw = new Uint8Array(await file.arrayBuffer());
     if (!raw.length) throw new Error('El archivo está vacío.');
@@ -285,7 +297,7 @@ async function handleFile(file) {
     const same = back.length === raw.length && back.every((v, i) => v === raw[i]);
     current = { name: file.name.replace(/\.txt$/i, ''), raw, res };
     $('#dropText').textContent = file.name;
-    setMsg(msg, '');
+    setMsg(msg, note); // aviso opcional (p. ej. "se soltaron varios archivos")
     showResult(raw, res, same);
   } catch (e) {
     setMsg(msg, e.message, 'err');
@@ -328,11 +340,33 @@ function showResult(raw, res, same) {
   $('#result').scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
 }
 
-$('#fileIn').addEventListener('change', (e) => handleFile(e.target.files[0]));
+$('#fileIn').addEventListener('change', (e) => {
+  handleFile(e.target.files[0]);
+  e.target.value = ''; // permite volver a elegir el mismo archivo
+});
+
 const drop = $('#drop');
-['dragenter', 'dragover'].forEach(t => drop.addEventListener(t, (e) => { e.preventDefault(); drop.classList.add('over'); }));
-['dragleave', 'drop'].forEach(t => drop.addEventListener(t, (e) => { e.preventDefault(); drop.classList.remove('over'); }));
-drop.addEventListener('drop', (e) => handleFile(e.dataTransfer.files[0]));
+let dragDepth = 0; // cuenta entradas/salidas para que los hijos (svg, span) no causen parpadeo
+drop.addEventListener('dragenter', (e) => { e.preventDefault(); dragDepth++; drop.classList.add('over'); });
+drop.addEventListener('dragover', (e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; });
+drop.addEventListener('dragleave', (e) => {
+  e.preventDefault();
+  if (--dragDepth <= 0) { dragDepth = 0; drop.classList.remove('over'); }
+});
+drop.addEventListener('drop', (e) => {
+  e.preventDefault();
+  dragDepth = 0;
+  drop.classList.remove('over');
+  const files = e.dataTransfer.files;
+  if (!files.length) return;
+  const note = files.length > 1 ? `Soltaste ${files.length} archivos; solo se usó «${files[0].name}».` : '';
+  handleFile(files[0], note);
+});
+
+// Evita que el navegador abra el archivo si se suelta fuera de la zona
+['dragover', 'drop'].forEach(t => window.addEventListener(t, (e) => {
+  if (!drop.contains(e.target)) e.preventDefault();
+}));
 
 $('#toggle').addEventListener('click', () => {
   const box = $('#tableBox');

@@ -72,6 +72,20 @@
     </div>
 
     <div class="card" id="result" hidden>
+      <div class="actions">
+        <button class="btn" id="dlHuff" type="button">Descargar .huff</button>
+        <button class="btn ghost" id="toggle" type="button">Ver tabla de códigos</button>
+        <!-- Nuevo botón para el árbol -->
+        <button class="btn ghost" id="toggleTree" type="button">Ver Árbol Huffman</button>
+      </div>
+      
+      <!-- Contenedor del árbol dinámico -->
+      <div id="treeWrap" style="overflow-x: auto; margin-top: 14px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg);" hidden>
+        <canvas id="treeCanvas" style="max-width: 100%; height: auto; display: block; margin: 0 auto;"></canvas> 
+      </div>
+
+      <div id="tableBox" hidden>
+
       <h2>2. Resultado</h2>
       <div class="stats" id="stats"></div>
       <div class="cmp" id="cmp"></div>
@@ -120,8 +134,12 @@ function buildLengths(data) {
   const syms = [];
   for (let b = 0; b < 256; b++) if (freq[b]) syms.push(b);
   const lengths = new Array(256).fill(0);
+  
+  let root = null;
+
   if (syms.length === 1) {
     lengths[syms[0]] = 1;
+    root = { sym: syms[0], w: freq[syms[0]] }; // Árbol de un solo nodo
   } else if (syms.length > 1) {
     let id = 0;
     let nodes = syms.map(b => ({ w: freq[b], id: id++, sym: b }));
@@ -134,8 +152,12 @@ function buildLengths(data) {
       if (n.sym !== undefined) { lengths[n.sym] = d; return; }
       walk(n.l, d + 1); walk(n.r, d + 1);
     })(nodes[0], 0);
+    
+    root = nodes[0]; // Capturar la raíz
   }
-  return { freq, syms, lengths };
+  
+  // Devolver todo correctamente
+  return { freq, syms, lengths, root };
 }
 
 function canonicalBits(lengths) {
@@ -158,7 +180,7 @@ function canonicalBits(lengths) {
 
 // Formato HUF1: "HUF1" | largo original (u32) | n símbolos (u16) | n × (byte, longitud) | bits
 function huffmanCompress(data) {
-  const { freq, syms, lengths } = buildLengths(data);
+  const { freq, syms, lengths, root } = buildLengths(data); //modificado para el arbol
   const bitsTable = canonicalBits(lengths);
   let totalBits = 0;
   for (const b of syms) totalBits += freq[b] * lengths[b];
@@ -180,7 +202,7 @@ function huffmanCompress(data) {
     }
   }
   if (nb > 0) out[o] = cur << (8 - nb);
-  return { out, freq, syms, lengths, bitsTable, totalBits, headerSize };
+  return { out, freq, syms, lengths, bitsTable, totalBits, headerSize, root }; // modificado para el arbol
 }
 
 function huffmanDecompress(bytes) {
@@ -327,6 +349,73 @@ function showResult(raw, res, same) {
   Array.from(body.children).forEach((tr, i) => { tr.style.animationDelay = Math.min(i, 24) * 25 + 'ms'; });
   $('#result').scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
 }
+
+// Función para dibujar el árbol dinámicamente
+function drawTree(root, canvas) {
+  if (!root) return;
+  const ctx = canvas.getContext('2d');
+  let maxDepth = 0, leafCount = 0;
+
+  // 1. Asignar coordenadas (X, Y) calculando la anchura según las hojas
+ function traverse(node, depth) {
+    if (depth > maxDepth) maxDepth = depth;
+    if (node.sym !== undefined) { 
+      node.x = leafCount * 24 + 15; // Antes era 35
+      node.y = depth * 35 + 20;     // Antes era 45
+      leafCount++;
+    } else { 
+      traverse(node.l, depth + 1);
+      traverse(node.r, depth + 1);
+      node.x = (node.l.x + node.r.x) / 2;
+      node.y = depth * 35 + 20;
+    }
+  }
+  traverse(root, 0);
+
+  // 2. Ajustar el canvas al tamaño real del árbol
+  canvas.width = Math.max(leafCount * 24 + 30, 400);
+  canvas.height = maxDepth * 35 + 50;;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  ctx.font = '12px "JetBrains Mono", monospace';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.lineWidth = 1.5;
+
+  // 3. Pintar líneas y círculos
+  function renderNode(node) {
+    if (node.l && node.r) {
+      ctx.strokeStyle = '#B9C8BE';
+      ctx.beginPath(); ctx.moveTo(node.x, node.y); ctx.lineTo(node.l.x, node.l.y); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(node.x, node.y); ctx.lineTo(node.r.x, node.r.y); ctx.stroke();
+      renderNode(node.l);
+      renderNode(node.r);
+    }
+    ctx.beginPath();
+    ctx.arc(node.x, node.y, 10, 0, 2 * Math.PI); // Radio ajustado a 10
+    // Verde para hojas, oscuro para nodos internos (usando tus variables CSS)
+    ctx.fillStyle = node.sym !== undefined ? '#8FD4A9' : '#141B17'; 
+    ctx.fill();
+
+    if (node.sym !== undefined) {
+      ctx.fillStyle = '#17201B';
+      // Limitar a 2 caracteres para que no desborde el círculo
+      ctx.fillText(symLabel(node.sym).substring(0, 2), node.x, node.y);
+    }
+  }
+  renderNode(root);
+} //Para el árbol tambien
+
+// Lógica del botón para mostrar/ocultar
+$('#toggleTree').addEventListener('click', () => {
+  const wrap = $('#treeWrap');
+  wrap.hidden = !wrap.hidden;
+  $('#toggleTree').textContent = wrap.hidden ? 'Ver Árbol Huffman' : 'Ocultar Árbol Huffman';
+  // Dibujar el árbol solo cuando se muestra para asegurar el contexto correcto
+  if (!wrap.hidden && current && current.res.root) {
+    drawTree(current.res.root, $('#treeCanvas'));
+  }
+});
 
 $('#fileIn').addEventListener('change', (e) => handleFile(e.target.files[0]));
 const drop = $('#drop');

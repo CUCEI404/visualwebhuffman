@@ -264,6 +264,7 @@ const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 function formatStat(v, kind) {
   if (kind === 'bytes') return fmtBytes(Math.round(v));
   if (kind === 'pct') return v.toFixed(1) + ' %';
+  if (kind === 'ms') return v.toFixed(2) + ' ms';
   return v.toFixed(2);
 }
 function countUp() {
@@ -332,9 +333,15 @@ function handleText() {
 
 // Comprime, verifica y muestra el resultado (lo usan el archivo y la cadena)
 function processBytes(raw, name) {
+  const t0 = performance.now(); // Iniciar cronómetro
   const res = huffmanCompress(raw);
+  const t1 = performance.now(); // Detener cronómetro
+
   const back = huffmanDecompress(res.out);
   const same = back.length === raw.length && back.every((v, i) => v === raw[i]);
+  
+  res.timeMs = +(t1 - t0).toFixed(2); // Guardar el tiempo
+  
   current = { name, raw, res, back };
   showResult(raw, res, same);
 }
@@ -416,15 +423,34 @@ function drawTree(res) {
 
 function showResult(raw, res, same) {
   $('#result').hidden = false;
+  
   const saving = 100 * (1 - res.out.length / raw.length);
+  const savedBytes = raw.length - res.out.length; // Cálculo exacto del ahorro
+  
   const stat = (label, num, kind, main) => `<div class="stat${main ? ' main' : ''}"><b data-num="${num}" data-kind="${kind}">0</b><span>${label}</span></div>`;
+  
+  // Panel con las 5 métricas requeridas
   $('#stats').innerHTML =
     stat('Original', raw.length, 'bytes') +
     stat('Comprimido', res.out.length, 'bytes') +
-    stat('Ahorro', saving, 'pct', true) +
-    stat('Bits por símbolo', res.totalBits / raw.length, 'bits');
+    stat('Ahorro neto', savedBytes, 'bytes') +
+    stat('Reducción', saving, 'pct', true) +
+    stat('Tiempo de proceso', res.timeMs, 'ms'); 
+    
   countUp();
-  showBars(raw.length, res.out.length);
+  
+  // Barras con bytes exactos y equivalente en KB/MB
+  const row = (label, cls, bytes) => `<div class="cmp-row"><span>${label}</span><div class="cmp-track"><div class="cmp-fill ${cls}"></div><span class="cmp-text">${fmtN(bytes)} bytes (${fmtBytes(bytes)})</span></div></div>`;
+  
+  const pct = Math.max(2, Math.min(100, 100 * res.out.length / raw.length));
+  $('#cmp').innerHTML = row('Original', '', raw.length) + row('Huffman', 'small', res.out.length);
+  
+  const fills = document.querySelectorAll('#cmp .cmp-fill');
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    fills[0].style.width = '100%';
+    fills[1].style.width = pct + '%';
+  }));
+
   setMsg($('#verify'), same ? 'Verificado: al descomprimir se obtiene el mismo texto.' : 'Error: el texto descomprimido no coincide.', same ? 'ok' : 'err');
 
   const rows = res.syms.slice().sort((a, b) => res.freq[b] - res.freq[a] || a - b);

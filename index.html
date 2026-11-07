@@ -80,7 +80,9 @@
       <div class="cmp" id="cmp"></div>
       <div class="msg" id="verify"></div>
       <div class="actions">
-        <button class="btn" id="dlHuff" type="button">Descargar .huff</button>
+        <button class="btn" id="dlHuff" type="button">Descargar comprimido (.huff)</button>
+        <button class="btn" id="dlBack" type="button">Descargar recuperado (.txt)</button>
+        <button class="btn ghost" id="dlBoth" type="button">Descargar ambos</button>
         <button class="btn ghost" id="toggle" type="button">Ver tabla de códigos</button>
         <button class="btn ghost" id="toggleTree" type="button">Ver árbol de frecuencias</button>
       </div>
@@ -287,7 +289,7 @@ function showBars(orig, comp) {
   }));
 }
 
-let current = null; // { name, raw, res }
+let current = null; // { name, raw, res, back }
 
 const MAX_BYTES = 10 * 1024 * 1024; // 10 MB
 
@@ -302,6 +304,8 @@ function checkFile(file) {
 async function handleFile(file, note = '') {
   const msg = $('#msg');
   if (!file) return;
+  current = null;
+  $('#result').hidden = true;
   const error = checkFile(file);
   if (error) { setMsg(msg, error, 'err'); return; }
   try {
@@ -331,7 +335,7 @@ function processBytes(raw, name) {
   const res = huffmanCompress(raw);
   const back = huffmanDecompress(res.out);
   const same = back.length === raw.length && back.every((v, i) => v === raw[i]);
-  current = { name, raw, res };
+  current = { name, raw, res, back };
   showResult(raw, res, same);
 }
 
@@ -447,8 +451,9 @@ function showResult(raw, res, same) {
   $('#result').scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
 }
 
-$('#fileIn').addEventListener('change', (e) => {
-  handleFile(e.target.files[0]);
+$('#fileIn').addEventListener('change', async (e) => {
+  const f = e.target.files[0];
+  await handleFile(f);
   e.target.value = ''; // permite volver a elegir el mismo archivo
 });
 
@@ -487,13 +492,22 @@ $('#toggleTree').addEventListener('click', () => {
 });
 $('#textBtn').addEventListener('click', handleText);
 $('#textIn').addEventListener('keydown', (e) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) handleText(); });
-$('#dlHuff').addEventListener('click', () => current && download(current.name + '.huff', current.res.out, 'application/octet-stream'));
+const dlCompressed = () => current && download(current.name + '.huff', current.res.out, 'application/octet-stream');
+const dlRecovered = () => current && download(current.name + '_recuperado.txt', current.back, 'text/plain;charset=utf-8');
+$('#dlHuff').addEventListener('click', dlCompressed);
+$('#dlBack').addEventListener('click', dlRecovered);
+$('#dlBoth').addEventListener('click', () => {
+  if (!current) return;
+  dlCompressed();
+  setTimeout(dlRecovered, 400); // separados para que el navegador no bloquee la segunda descarga
+});
 
 let decoded = null, decName = 'texto';
 $('#huffIn').addEventListener('change', async (e) => {
   const f = e.target.files[0];
   if (!f) return;
   const m = $('#decMsg');
+  decoded = null;
   try {
     decoded = huffmanDecompress(new Uint8Array(await f.arrayBuffer()));
     decName = f.name.replace(/\.huff$/i, '');
@@ -504,8 +518,9 @@ $('#huffIn').addEventListener('change', async (e) => {
     setMsg(m, err.message, 'err');
     $('#decBox').hidden = true;
   }
+  e.target.value = ''; // permite volver a elegir el mismo archivo
 });
-$('#decDl').addEventListener('click', () => decoded && download(decName + '.txt', decoded, 'text/plain;charset=utf-8'));
+$('#decDl').addEventListener('click', () => decoded && download(decName + '_recuperado.txt', decoded, 'text/plain;charset=utf-8'));
 </script>
 </body>
 </html>

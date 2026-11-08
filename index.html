@@ -124,34 +124,83 @@ function symLabel(b) {
   return String.fromCharCode(b);
 }
 
-function buildLengths(data) {
+/* ===== Issue #40: cálculo de frecuencias y árbol de Huffman ===== */
+
+// 1) Frecuencias: cuenta cuántas veces aparece cada byte (0-255) en el texto. O(n)
+function calcularFrecuencias(data) {
   const freq = new Array(256).fill(0);
   for (let i = 0; i < data.length; i++) freq[data[i]]++;
+  return freq;
+}
+
+// 2) Cola de prioridad (min-heap): saca siempre el nodo de menor peso en O(log k).
+//    Empate: gana el de menor id, para que el árbol salga igual en cada ejecución.
+class MinHeap {
+  constructor() { this.a = []; }
+  get size() { return this.a.length; }
+  menor(i, j) { const x = this.a[i], y = this.a[j]; return x.w < y.w || (x.w === y.w && x.id < y.id); }
+  swap(i, j) { [this.a[i], this.a[j]] = [this.a[j], this.a[i]]; }
+  push(n) {
+    const a = this.a; a.push(n);
+    let i = a.length - 1;
+    while (i > 0) {                       // sube mientras sea menor que su padre
+      const p = (i - 1) >> 1;
+      if (!this.menor(i, p)) break;
+      this.swap(i, p); i = p;
+    }
+  }
+  pop() {
+    const a = this.a, top = a[0], last = a.pop();
+    if (a.length) {
+      a[0] = last;
+      let i = 0;
+      for (;;) {                          // baja mientras algún hijo sea menor
+        const l = 2 * i + 1, r = l + 1;
+        let m = i;
+        if (l < a.length && this.menor(l, m)) m = l;
+        if (r < a.length && this.menor(r, m)) m = r;
+        if (m === i) break;
+        this.swap(i, m); i = m;
+      }
+    }
+    return top;
+  }
+}
+
+// 3) Árbol: junta los dos nodos de menor frecuencia en uno nuevo (suma de pesos)
+//    hasta que solo queda la raíz. Con k símbolos distintos: O(k log k).
+//    Hoja = { sym, w }   ·   Nodo interno = { w, l, r }
+function construirArbol(freq) {
+  const heap = new MinHeap();
+  let id = 0;
+  for (let b = 0; b < 256; b++) if (freq[b]) heap.push({ sym: b, w: freq[b], id: id++ });
+  if (heap.size === 0) return null;
+  if (heap.size === 1) return heap.pop();  // un solo símbolo: la raíz es la hoja
+  while (heap.size > 1) {
+    const a = heap.pop(), b = heap.pop();
+    heap.push({ w: a.w + b.w, id: id++, l: a, r: b });
+  }
+  return heap.pop();
+}
+
+// 4) Longitud del código de cada símbolo = profundidad de su hoja en el árbol
+function calcularLongitudes(root) {
+  const lengths = new Array(256).fill(0);
+  if (!root) return lengths;
+  if (root.sym !== undefined) { lengths[root.sym] = 1; return lengths; } // caso de un solo símbolo
+  (function walk(n, d) {
+    if (n.sym !== undefined) { lengths[n.sym] = d; return; }
+    walk(n.l, d + 1); walk(n.r, d + 1);
+  })(root, 0);
+  return lengths;
+}
+
+function buildLengths(data) {
+  const freq = calcularFrecuencias(data);
   const syms = [];
   for (let b = 0; b < 256; b++) if (freq[b]) syms.push(b);
-  const lengths = new Array(256).fill(0);
-
-  let root = null;
-
-  if (syms.length === 1) {
-    lengths[syms[0]] = 1;
-    root = { sym: syms[0], w: freq[syms[0]] }; // Árbol de un solo nodo
-  } else if (syms.length > 1) {
-    let id = 0;
-    let nodes = syms.map(b => ({ w: freq[b], id: id++, sym: b }));
-    while (nodes.length > 1) {
-      nodes.sort((a, b) => a.w - b.w || a.id - b.id);
-      const a = nodes.shift(), b = nodes.shift();
-      nodes.push({ w: a.w + b.w, id: id++, l: a, r: b });
-    }
-    (function walk(n, d) {
-      if (n.sym !== undefined) { lengths[n.sym] = d; return; }
-      walk(n.l, d + 1); walk(n.r, d + 1);
-    })(nodes[0], 0);
-
-    root = nodes[0]; // Capturar la raíz
-  }
-
+  const root = construirArbol(freq);
+  const lengths = calcularLongitudes(root);
   return { freq, syms, lengths, root };
 }
 

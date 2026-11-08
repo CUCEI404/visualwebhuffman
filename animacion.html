@@ -28,9 +28,9 @@
 <section class="hero">
   <div class="wrap hero-inner">
     <div class="hero-text">
-      <p class="eyebrow">8 algoritmos · 6 tamaños</p>
-      <h2>Comparativa en vivo</h2>
-      <p class="lead">Mide cuánto tarda cada algoritmo de ordenamiento con arreglos aleatorios de 500 hasta 10 000 elementos.</p>
+      <p class="eyebrow">8 algoritmos · visualización y comparación</p>
+      <h2>Visualizador de ordenamiento</h2>
+      <p class="lead">Mira paso a paso qué compara y qué intercambia cada algoritmo, compáralos con los mismos datos y mide su tiempo con arreglos grandes.</p>
     </div>
     <div class="sortbars" aria-hidden="true"><i style="--h:0.9;--i:0"></i><i style="--h:0.35;--i:1"></i><i style="--h:0.7;--i:2"></i><i style="--h:0.2;--i:3"></i><i style="--h:1;--i:4"></i><i style="--h:0.55;--i:5"></i><i style="--h:0.8;--i:6"></i><i style="--h:0.3;--i:7"></i><i style="--h:0.65;--i:8"></i><i style="--h:0.45;--i:9"></i><i style="--h:0.95;--i:10"></i><i style="--h:0.25;--i:11"></i></div>
   </div>
@@ -40,8 +40,74 @@
 <div class="wrap">
 <main>
 
+  <section id="visualizador" class="card">
+    <h2>Visualizador paso a paso</h2>
+    <p class="sub">Elige un algoritmo (y opcionalmente un segundo para compararlo). Ambos se ejecutan sobre exactamente el mismo arreglo.</p>
+
+    <div class="viz-controls">
+      <label>Algoritmo (A)<select id="vizAlgoA"></select></label>
+      <label>Comparar con (B)<select id="vizAlgoB"></select></label>
+      <label>Tipo de datos
+        <select id="vizTipo">
+          <option value="aleatorio">Aleatorio</option>
+          <option value="casi">Casi ordenado</option>
+          <option value="invertido">Invertido (peor caso)</option>
+          <option value="ordenado">Ya ordenado</option>
+          <option value="pocos">Pocos valores distintos</option>
+        </select>
+      </label>
+      <label>Tamaño: <output id="vizSizeOut">30</output>
+        <input id="vizSize" type="range" min="5" max="80" value="30">
+      </label>
+      <label>Velocidad: <output id="vizSpeedOut"></output>
+        <input id="vizSpeed" type="range" min="1" max="100" value="45">
+      </label>
+    </div>
+
+    <div class="viz-manual">
+      <label>O escribe tus propios datos (enteros del 1 al 100, separados por comas)
+        <input id="vizManual" type="text" placeholder="Ejemplo: 42, 7, 93, 18, 55, 3">
+      </label>
+      <button class="btn ghost" id="vizUsar" type="button">Usar estos datos</button>
+    </div>
+    <div class="msg" id="vizMsg" role="status" aria-live="polite"></div>
+
+    <div class="actions">
+      <button class="btn" id="vizPlay" type="button">Iniciar</button>
+      <button class="btn ghost" id="vizStep" type="button">Paso</button>
+      <button class="btn ghost" id="vizEnd" type="button">Saltar al final</button>
+      <button class="btn ghost" id="vizReset" type="button">Reiniciar</button>
+      <button class="btn ghost" id="vizNuevo" type="button">Generar nuevo arreglo</button>
+    </div>
+    <p class="msg" id="vizStatus" role="status" aria-live="polite" style="margin-top:12px"></p>
+    <p class="hint" id="vizDatosInfo"></p>
+
+    <div class="viz-legend" aria-label="Leyenda de colores">
+      <span style="--k:#F2A541">Comparando</span>
+      <span style="--k:#ED5050">Intercambiando</span>
+      <span style="--k:#3498DB">Escribiendo</span>
+      <span style="--k:#7B5EA7">Pivote</span>
+      <span style="--k:#2F7249">En su lugar</span>
+      <span style="--k:#9CCBAE">Sin procesar</span>
+    </div>
+
+    <div class="viz-panels" id="vizPanels"></div>
+  </section>
+
+  <section id="resumen" class="card">
+    <h2>Comparación cuantitativa (mismos datos)</h2>
+    <p class="sub">Resultado completo de los 8 algoritmos con el arreglo actual. En verde, el mejor valor de cada columna. «Tiempo» es la ejecución real sin animación (promedio de varias repeticiones).</p>
+    <div class="tablewrap">
+      <table class="viz-table">
+        <thead><tr><th>Algoritmo</th><th class="n">Comparaciones</th><th class="n">Intercambios</th><th class="n">Escrituras</th><th class="n">Pasos</th><th class="n">Tiempo (ms)</th><th>Complejidad prom.</th><th>Orden</th></tr></thead>
+        <tbody id="vizTabla"></tbody>
+      </table>
+    </div>
+    <p class="viz-note">Pasos = comparaciones + intercambios + escrituras. Merge Sort no intercambia: escribe los resultados de cada mezcla.</p>
+  </section>
+
   <section id="ordenamiento" class="card">
-    <h2>Algoritmos a comparar</h2>
+    <h2>Medición de tiempo con arreglos grandes</h2>
     <p class="sub">Selecciona uno o varios algoritmos y presiona «Ejecutar pruebas».</p>
 
     <div class="algos" id="algoSelector">
@@ -297,6 +363,567 @@ function measureTime(sortFn, array) {
     setTimeout(() => progress.classList.remove('on'), 700);
   });
 })();
+</script>
+<script>
+/* ===== Algoritmos del visualizador ===== */
+/* Algoritmos de ordenamiento para el visualizador · Equipo 404
+ *
+ * Cada algoritmo recibe un arreglo (que ordena en el lugar) y un "emisor" `e`.
+ * Mientras ordena, avisa al emisor lo que hace:
+ *   e.cmp(i, j)   compara las posiciones i y j
+ *   e.swap(i, j)  intercambia las posiciones i y j
+ *   e.set(i, v)   escribe el valor v en la posición i
+ *   e.pivot(i)    marca el pivote (Quick Sort)
+ *   e.range(l, h) marca el subarreglo en el que se trabaja
+ *   e.fix(i)      la posición i ya quedó en su lugar definitivo
+ * El visualizador reproduce esa lista de eventos paso a paso, y de ahí salen
+ * también las métricas (comparaciones, intercambios, escrituras, pasos).
+ *
+ * Expone: Algoritmos.lista, Algoritmos.porId, Algoritmos.registrar, Algoritmos.medirTiempo
+ */
+(function (global) {
+  'use strict';
+
+  /* ---------- Emisores ---------- */
+
+  // Guarda los eventos en tres arreglos paralelos: tipo, a, b
+  // Tipos: 0 cmp, 1 swap, 2 set, 3 pivot, 4 range, 5 fix
+  function grabador() {
+    const t = [], a = [], b = [];
+    const push = (k, x, y) => { t.push(k); a.push(x); b.push(y); };
+    return {
+      t, a, b,
+      cmp: (i, j) => push(0, i, j),
+      swap: (i, j) => push(1, i, j),
+      set: (i, v) => push(2, i, v),
+      pivot: (i) => push(3, i, 0),
+      range: (l, h) => push(4, l, h),
+      fix: (i) => push(5, i, 0)
+    };
+  }
+
+  // Emisor que no hace nada: sirve para medir el tiempo real del algoritmo
+  const nulo = { cmp() {}, swap() {}, set() {}, pivot() {}, range() {}, fix() {} };
+
+  function sw(a, i, j) { const x = a[i]; a[i] = a[j]; a[j] = x; }
+
+  /* ---------- Algoritmos de fuerza bruta ---------- */
+
+  function bubbleSort(a, e) {
+    const n = a.length;
+    for (let i = 0; i < n - 1; i++) {
+      let huboCambio = false;
+      for (let j = 0; j < n - i - 1; j++) {
+        e.cmp(j, j + 1);
+        if (a[j] > a[j + 1]) { sw(a, j, j + 1); e.swap(j, j + 1); huboCambio = true; }
+      }
+      e.fix(n - i - 1);
+      if (!huboCambio) break; // ya está ordenado
+    }
+  }
+
+  function selectionSort(a, e) {
+    const n = a.length;
+    for (let i = 0; i < n - 1; i++) {
+      let min = i;
+      for (let j = i + 1; j < n; j++) {
+        e.cmp(j, min);
+        if (a[j] < a[min]) min = j;
+      }
+      if (min !== i) { sw(a, i, min); e.swap(i, min); }
+      e.fix(i);
+    }
+  }
+
+  // Versión con intercambios adyacentes: así se ve cómo el elemento "viaja" hacia su lugar.
+  function insertionSort(a, e) {
+    const n = a.length;
+    for (let i = 1; i < n; i++) {
+      let j = i;
+      while (j > 0) {
+        e.cmp(j - 1, j);
+        if (a[j - 1] > a[j]) { sw(a, j - 1, j); e.swap(j - 1, j); j--; }
+        else break;
+      }
+    }
+  }
+
+  function gnomeSort(a, e) {
+    const n = a.length;
+    let i = 0;
+    while (i < n) {
+      if (i === 0) { i++; continue; }
+      e.cmp(i - 1, i);
+      if (a[i] >= a[i - 1]) i++;
+      else { sw(a, i, i - 1); e.swap(i, i - 1); i--; }
+    }
+  }
+
+  function exchangeSort(a, e) {
+    const n = a.length;
+    for (let i = 0; i < n - 1; i++) {
+      for (let j = i + 1; j < n; j++) {
+        e.cmp(i, j);
+        if (a[j] < a[i]) { sw(a, i, j); e.swap(i, j); }
+      }
+      e.fix(i);
+    }
+  }
+
+  function stoogeSort(a, e) {
+    function rec(l, h) {
+      if (l >= h) return;
+      e.range(l, h);
+      e.cmp(l, h);
+      if (a[l] > a[h]) { sw(a, l, h); e.swap(l, h); }
+      if (h - l + 1 > 2) {
+        const t = Math.floor((h - l + 1) / 3);
+        rec(l, h - t);      // primeros 2/3
+        rec(l + t, h);      // últimos 2/3
+        rec(l, h - t);      // primeros 2/3 otra vez
+      }
+    }
+    rec(0, a.length - 1);
+  }
+
+  /* ---------- Divide y vencerás ---------- */
+
+  function mergeSort(a, e) {
+    function rec(l, r) {
+      if (l >= r) return;
+      const m = (l + r) >> 1;
+      rec(l, m);
+      rec(m + 1, r);
+      e.range(l, r);
+      const izq = a.slice(l, m + 1), der = a.slice(m + 1, r + 1), mezcla = [];
+      let i = 0, j = 0;
+      // Primero se comparan los candidatos (el arreglo aún no cambia, así la comparación se ve bien)...
+      while (i < izq.length && j < der.length) {
+        e.cmp(l + i, m + 1 + j);
+        if (izq[i] <= der[j]) mezcla.push(izq[i++]); else mezcla.push(der[j++]);
+      }
+      while (i < izq.length) mezcla.push(izq[i++]);
+      while (j < der.length) mezcla.push(der[j++]);
+      // ...y después se escribe el resultado de la mezcla en el arreglo.
+      for (let k = 0; k < mezcla.length; k++) { a[l + k] = mezcla[k]; e.set(l + k, mezcla[k]); }
+    }
+    rec(0, a.length - 1);
+  }
+
+  function quickSort(a, e) {
+    function rec(l, h) {
+      if (l > h) return;
+      if (l === h) { e.fix(l); return; }
+      e.range(l, h);
+      const pivote = a[h];            // pivote: último elemento (partición de Lomuto)
+      e.pivot(h);
+      let i = l - 1;
+      for (let j = l; j < h; j++) {
+        e.cmp(j, h);
+        if (a[j] < pivote) {
+          i++;
+          if (i !== j) { sw(a, i, j); e.swap(i, j); }
+        }
+      }
+      if (i + 1 !== h) { sw(a, i + 1, h); e.swap(i + 1, h); }
+      e.pivot(-1);
+      e.fix(i + 1);                    // el pivote quedó en su lugar final
+      rec(l, i);
+      rec(i + 2, h);
+    }
+    rec(0, a.length - 1);
+  }
+
+  /* ---------- Catálogo ---------- */
+
+  const lista = [
+    { id: 'bubble', nombre: 'Bubble Sort', color: '#ed5050', fn: bubbleSort,
+      mejor: 'O(n)', promedio: 'O(n²)', peor: 'O(n²)', espacio: 'O(1)',
+      descripcion: 'Compara pares vecinos e intercambia los que están al revés; en cada pasada el mayor "sube" al final.' },
+    { id: 'selection', nombre: 'Selection Sort', color: '#41b3a3', fn: selectionSort,
+      mejor: 'O(n²)', promedio: 'O(n²)', peor: 'O(n²)', espacio: 'O(1)',
+      descripcion: 'Busca el mínimo del resto del arreglo y lo coloca al frente con un solo intercambio por vuelta.' },
+    { id: 'insertion', nombre: 'Insertion Sort', color: '#3498db', fn: insertionSort,
+      mejor: 'O(n)', promedio: 'O(n²)', peor: 'O(n²)', espacio: 'O(1)',
+      descripcion: 'Toma cada elemento y lo desplaza hacia atrás hasta encontrar su lugar dentro de la parte ya ordenada.' },
+    { id: 'gnome', nombre: 'Gnome Sort', color: '#e67e22', fn: gnomeSort,
+      mejor: 'O(n)', promedio: 'O(n²)', peor: 'O(n²)', espacio: 'O(1)',
+      descripcion: 'Avanza si el par está en orden; si no, intercambia y retrocede un paso, como un gnomo ordenando macetas.' },
+    { id: 'exchange', nombre: 'Exchange Sort', color: '#f2a541', fn: exchangeSort,
+      mejor: 'O(n²)', promedio: 'O(n²)', peor: 'O(n²)', espacio: 'O(1)',
+      descripcion: 'Compara la posición i con todas las siguientes y las intercambia cuando la de la derecha es menor.' },
+    { id: 'stooge', nombre: 'Stooge Sort', color: '#7b5ea7', fn: stoogeSort,
+      mejor: 'O(n^2.71)', promedio: 'O(n^2.71)', peor: 'O(n^2.71)', espacio: 'O(n)',
+      descripcion: 'Ordena recursivamente los primeros 2/3, luego los últimos 2/3 y otra vez los primeros 2/3. Muy lento a propósito.' },
+    { id: 'merge', nombre: 'Merge Sort', color: '#5c940d', fn: mergeSort,
+      mejor: 'O(n log n)', promedio: 'O(n log n)', peor: 'O(n log n)', espacio: 'O(n)',
+      descripcion: 'Divide el arreglo a la mitad, ordena cada mitad y las mezcla en orden.' },
+    { id: 'quick', nombre: 'Quick Sort', color: '#16a085', fn: quickSort,
+      mejor: 'O(n log n)', promedio: 'O(n log n)', peor: 'O(n²)', espacio: 'O(log n)',
+      descripcion: 'Elige un pivote, manda los menores a su izquierda y los mayores a su derecha, y repite en cada lado.' }
+  ];
+  const porId = {};
+  lista.forEach(a => { porId[a.id] = a; });
+
+  /* ---------- API ---------- */
+
+  // Ejecuta el algoritmo sobre una copia de los datos y devuelve eventos + totales + verificación.
+  function registrar(id, datos) {
+    const copia = datos.slice();
+    const g = grabador();
+    porId[id].fn(copia, g);
+    const esperado = datos.slice().sort((x, y) => x - y);
+    const correcto = copia.length === esperado.length && copia.every((v, i) => v === esperado[i]);
+    let cmp = 0, swap = 0, set = 0;
+    for (let i = 0; i < g.t.length; i++) {
+      const k = g.t[i];
+      if (k === 0) cmp++; else if (k === 1) swap++; else if (k === 2) set++;
+    }
+    return { id, ev: { t: g.t, a: g.a, b: g.b }, totales: { cmp, swap, set, pasos: cmp + swap + set }, correcto };
+  }
+
+  // Tiempo promedio (ms) de una ejecución sin animación; se repite varias veces porque
+  // con arreglos pequeños una sola ejecución dura microsegundos.
+  function medirTiempo(id, datos) {
+    const fn = porId[id].fn;
+    let reps = 0, t1;
+    const t0 = performance.now();
+    do {
+      fn(datos.slice(), nulo);
+      reps++;
+      t1 = performance.now();
+    } while (t1 - t0 < 8 && reps < 500);
+    return (t1 - t0) / reps;
+  }
+
+  global.Algoritmos = { lista, porId, registrar, medirTiempo };
+})(typeof window !== 'undefined' ? window : globalThis);
+
+</script>
+<script>
+/* ===== Interfaz del visualizador ===== */
+/* Visualizador de ordenamiento · Equipo 404
+ *
+ * Usa algoritmos.js. Para los datos actuales ejecuta los 8 algoritmos y guarda la lista de
+ * eventos de cada uno (comparar / intercambiar / escribir). La animación solo reproduce esos
+ * eventos; las métricas salen de contarlos. Así todos los algoritmos usan EXACTAMENTE los mismos datos.
+ */
+(function () {
+  'use strict';
+
+  const A = window.Algoritmos;
+  const $ = (s) => document.querySelector(s);
+  const fmt = (n) => n.toLocaleString('es-MX');
+  const fmtMs = (ms) => ms.toFixed(ms < 0.1 ? 4 : 3);
+
+  const COLORES = {
+    base: '#9CCBAE', cmp: '#F2A541', swap: '#ED5050', set: '#3498DB',
+    pivot: '#7B5EA7', fijo: '#2F7249', texto: '#17201B'
+  };
+  const MAX_VALOR = 100, MIN_N = 2, MAX_N = 80;
+
+  let datos = [];            // arreglo compartido por todos los algoritmos
+  let cache = {};            // id -> { ev, totales, correcto, ms }
+  let paneles = [];          // paneles visibles (1 o 2)
+  let selA = 'bubble', selB = 'quick';
+  let jugando = false, ultimo = 0, acumulado = 0, raf = 0;
+
+  /* ---------- Datos ---------- */
+
+  function generar(n, tipo) {
+    const rnd = () => 1 + Math.floor(Math.random() * MAX_VALOR);
+    let a = Array.from({ length: n }, rnd);
+    if (tipo === 'ordenado') a.sort((x, y) => x - y);
+    else if (tipo === 'invertido') a.sort((x, y) => y - x);
+    else if (tipo === 'casi') {
+      a.sort((x, y) => x - y);
+      const k = Math.max(1, Math.round(n * 0.1));
+      for (let i = 0; i < k; i++) {
+        const p = Math.floor(Math.random() * n), q = Math.floor(Math.random() * n);
+        [a[p], a[q]] = [a[q], a[p]];
+      }
+    } else if (tipo === 'pocos') a = a.map(v => [20, 40, 60, 80][v % 4]);
+    return a;
+  }
+
+  function nuevosDatos() {
+    datos = generar(+$('#vizSize').value, $('#vizTipo').value);
+    recalcular();
+  }
+
+  // Corre los 8 algoritmos con los datos actuales y arma paneles y tabla
+  function recalcular() {
+    parar();
+    cache = {};
+    for (const alg of A.lista) {
+      const r = A.registrar(alg.id, datos);
+      r.ms = A.medirTiempo(alg.id, datos);
+      cache[alg.id] = r;
+    }
+    const vista = datos.length > 14 ? datos.slice(0, 14).join(', ') + ', …' : datos.join(', ');
+    $('#vizDatosInfo').textContent = `Datos compartidos (n = ${datos.length}): ${vista}`;
+    construirPaneles();
+    tabla();
+  }
+
+  /* ---------- Paneles ---------- */
+
+  function construirPaneles() {
+    parar();
+    const cont = $('#vizPanels');
+    cont.replaceChildren();
+    paneles = [];
+    const ids = [selA];
+    if (selB) ids.push(selB);
+    ids.forEach((id, k) => paneles.push(crearPanel(id, cont, ids.length > 1 ? (k ? 'B' : 'A') : '')));
+    estado(selB ? 'Listo: ambos algoritmos usan el mismo arreglo.' : 'Listo. Presiona «Iniciar».');
+    actualizarBotones();
+  }
+
+  function crearPanel(id, cont, letra) {
+    const alg = A.porId[id], r = cache[id];
+    const art = document.createElement('article');
+    art.className = 'viz-panel';
+    art.style.setProperty('--c', alg.color);
+    art.innerHTML =
+      `<h3>${alg.nombre}${letra ? ` <span class="viz-tag">${letra}</span>` : ''}</h3>
+       <p class="viz-cx">Mejor: <b>${alg.mejor}</b> · Promedio: <b>${alg.promedio}</b> · Peor: <b>${alg.peor}</b><br>Memoria extra: <b>${alg.espacio}</b></p>
+       <canvas role="img" aria-label="Barras del arreglo durante el ordenamiento con ${alg.nombre}"></canvas>
+       <p class="viz-now" data-r="now"></p>
+       <dl class="viz-metrics">
+         <div><dt>Comparaciones</dt><dd data-r="cmp"></dd></div>
+         <div><dt>Intercambios</dt><dd data-r="swap"></dd></div>
+         <div><dt>Escrituras</dt><dd data-r="set"></dd></div>
+         <div><dt>Pasos</dt><dd data-r="pasos"></dd></div>
+         <div><dt>Tiempo (sin animación)</dt><dd>${fmtMs(r.ms)} <small>ms</small></dd></div>
+       </dl>
+       <p class="viz-desc">${alg.descripcion}</p>`;
+    cont.append(art);
+    const q = (k) => art.querySelector(`[data-r="${k}"]`);
+    const p = { id, alg, r, canvas: art.querySelector('canvas'),
+      now: q('now'), cmp: q('cmp'), swap: q('swap'), set: q('set'), pasos: q('pasos') };
+    reiniciarPanel(p);
+    return p;
+  }
+
+  function reiniciarPanel(p) {
+    p.arr = datos.slice();
+    p.pos = 0;
+    p.cnt = { cmp: 0, swap: 0, set: 0 };
+    p.fijo = new Uint8Array(datos.length);
+    p.hi = null; p.pivote = -1; p.rango = null;
+    p.done = false; p.ok = null;
+    actualizar(p);
+  }
+
+  /* ---------- Reproducción de eventos ---------- */
+
+  // Aplica eventos hasta ejecutar una acción visible (comparar / intercambiar / escribir).
+  function avanzar(p) {
+    const { t, a, b } = p.r.ev;
+    while (p.pos < t.length) {
+      const k = t[p.pos], x = a[p.pos], y = b[p.pos];
+      p.pos++;
+      if (k === 0) { p.cnt.cmp++; p.hi = { k, i: x, j: y }; return true; }
+      if (k === 1) { const v = p.arr[x]; p.arr[x] = p.arr[y]; p.arr[y] = v; p.cnt.swap++; p.hi = { k, i: x, j: y }; return true; }
+      if (k === 2) { p.arr[x] = y; p.cnt.set++; p.hi = { k, i: x }; return true; }
+      if (k === 3) p.pivote = x;
+      else if (k === 4) p.rango = [x, y];
+      else if (k === 5) p.fijo[x] = 1;
+    }
+    terminar(p);
+    return false;
+  }
+
+  function terminar(p) {
+    p.done = true;
+    p.hi = null; p.pivote = -1; p.rango = null;
+    p.fijo.fill(1);
+    // Comprobación independiente: lo que se ve en pantalla realmente quedó ordenado
+    p.ok = p.arr.every((v, i) => i === 0 || p.arr[i - 1] <= v);
+  }
+
+  function actualizar(p) {
+    const tot = p.r.totales;
+    p.cmp.innerHTML = `${fmt(p.cnt.cmp)} <small>/ ${fmt(tot.cmp)}</small>`;
+    p.swap.innerHTML = `${fmt(p.cnt.swap)} <small>/ ${fmt(tot.swap)}</small>`;
+    p.set.innerHTML = `${fmt(p.cnt.set)} <small>/ ${fmt(tot.set)}</small>`;
+    p.pasos.innerHTML = `${fmt(p.cnt.cmp + p.cnt.swap + p.cnt.set)} <small>/ ${fmt(tot.pasos)}</small>`;
+    let txt = 'Listo para iniciar.', cls = 'viz-now';
+    if (p.done) {
+      txt = p.ok ? '✓ Arreglo ordenado correctamente.' : '✗ Error: el arreglo no quedó ordenado.';
+      cls += p.ok ? ' ok' : ' err';
+    } else if (p.hi) {
+      const { k, i, j } = p.hi, ar = p.arr;
+      if (k === 0) txt = `Compara [${i}] = ${ar[i]} con [${j}] = ${ar[j]}.`;
+      else if (k === 1) txt = `Intercambia las posiciones [${i}] y [${j}] → ${ar[i]} y ${ar[j]}.`;
+      else txt = `Escribe ${ar[i]} en la posición [${i}].`;
+    }
+    p.now.textContent = txt;
+    p.now.className = cls;
+    dibujar(p);
+  }
+
+  function dibujar(p) {
+    const c = p.canvas, dpr = window.devicePixelRatio || 1;
+    const W = c.clientWidth, H = c.clientHeight;
+    if (!W || !H) return;
+    if (c.width !== Math.round(W * dpr) || c.height !== Math.round(H * dpr)) {
+      c.width = Math.round(W * dpr); c.height = Math.round(H * dpr);
+    }
+    const g = c.getContext('2d');
+    g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    g.clearRect(0, 0, W, H);
+    const n = p.arr.length, slot = W / n, hueco = Math.min(3, slot * 0.18), bw = Math.max(1, slot - hueco);
+    const etiquetas = n <= 25;
+    const alto = H - (etiquetas ? 18 : 6);
+    g.font = '11px "JetBrains Mono", ui-monospace, monospace';
+    g.textAlign = 'center';
+    for (let i = 0; i < n; i++) {
+      let col = COLORES.base;
+      if (p.fijo[i]) col = COLORES.fijo;
+      if (i === p.pivote) col = COLORES.pivot;
+      if (p.hi && (i === p.hi.i || i === p.hi.j)) col = p.hi.k === 0 ? COLORES.cmp : p.hi.k === 1 ? COLORES.swap : COLORES.set;
+      const fuera = p.rango && (i < p.rango[0] || i > p.rango[1]) && !p.fijo[i];
+      g.globalAlpha = fuera ? 0.35 : 1;
+      const h = Math.max(2, p.arr[i] / MAX_VALOR * alto);
+      const x = i * slot + hueco / 2;
+      g.fillStyle = col;
+      g.fillRect(x, H - h, bw, h);
+      if (etiquetas) { g.fillStyle = COLORES.texto; g.fillText(p.arr[i], x + bw / 2, H - h - 4); }
+    }
+    g.globalAlpha = 1;
+  }
+
+  /* ---------- Control ---------- */
+
+  const pasosPorSeg = () => Math.round(2 * Math.pow(1.1, +$('#vizSpeed').value));
+
+  function tick(ahora) {
+    if (!jugando) return;
+    const dt = Math.min(100, ahora - ultimo);
+    ultimo = ahora;
+    acumulado += dt / 1000 * pasosPorSeg();
+    const n = Math.min(Math.floor(acumulado), 20000);
+    acumulado -= Math.floor(acumulado);
+    let vivo = false;
+    for (const p of paneles) {
+      if (p.done) continue;
+      for (let k = 0; k < n && !p.done; k++) avanzar(p);
+      actualizar(p);
+      if (!p.done) vivo = true;
+    }
+    if (vivo) raf = requestAnimationFrame(tick);
+    else { jugando = false; estado('Terminado. Compara los contadores y la tabla de abajo.'); actualizarBotones(); }
+  }
+
+  function iniciar() {
+    if (paneles.every(p => p.done)) paneles.forEach(reiniciarPanel);
+    jugando = true; ultimo = performance.now(); acumulado = 0;
+    estado('Ejecutando…');
+    actualizarBotones();
+    raf = requestAnimationFrame(tick);
+  }
+
+  function parar() {
+    jugando = false;
+    cancelAnimationFrame(raf);
+  }
+
+  function pausar() { parar(); estado('En pausa.'); actualizarBotones(); }
+
+  function paso() {
+    parar();
+    if (paneles.every(p => p.done)) paneles.forEach(reiniciarPanel);
+    paneles.forEach(p => { if (!p.done) { avanzar(p); actualizar(p); } });
+    estado('Avance de un paso.');
+    actualizarBotones();
+  }
+
+  function saltarAlFinal() {
+    parar();
+    paneles.forEach(p => { while (!p.done) avanzar(p); actualizar(p); });
+    estado('Terminado. Compara los contadores y la tabla de abajo.');
+    actualizarBotones();
+  }
+
+  function reiniciar() {
+    parar();
+    paneles.forEach(reiniciarPanel);
+    estado('Simulación reiniciada con los mismos datos.');
+    actualizarBotones();
+  }
+
+  function estado(t) { $('#vizStatus').textContent = t; }
+
+  function actualizarBotones() {
+    const empezado = paneles.some(p => p.pos > 0);
+    $('#vizPlay').textContent = jugando ? 'Pausar' : (empezado && !paneles.every(p => p.done) ? 'Reanudar' : 'Iniciar');
+  }
+
+  /* ---------- Tabla con los 8 algoritmos (mismos datos) ---------- */
+
+  function tabla() {
+    const ids = A.lista.map(a => a.id);
+    const min = {};
+    ['cmp', 'swap', 'set', 'pasos'].forEach(c => { min[c] = Math.min(...ids.map(id => cache[id].totales[c])); });
+    min.ms = Math.min(...ids.map(id => cache[id].ms));
+    $('#vizTabla').innerHTML = ids.map(id => {
+      const a = A.porId[id], r = cache[id], t = r.totales;
+      const tag = id === selA ? '<span class="viz-tag">A</span>' : (id === selB ? '<span class="viz-tag b">B</span>' : '');
+      const celda = (v, c, txt) => `<td class="n${v === min[c] ? ' best' : ''}">${txt}</td>`;
+      return `<tr class="${tag ? 'sel' : ''}"><td><span class="dot" style="background:${a.color}"></span>${a.nombre}${tag}</td>` +
+        celda(t.cmp, 'cmp', fmt(t.cmp)) + celda(t.swap, 'swap', fmt(t.swap)) + celda(t.set, 'set', fmt(t.set)) +
+        celda(t.pasos, 'pasos', fmt(t.pasos)) + celda(r.ms, 'ms', fmtMs(r.ms)) +
+        `<td>${a.promedio}</td><td>${r.correcto ? '✓' : '✗'}</td></tr>`;
+    }).join('');
+  }
+
+  /* ---------- Entrada manual ---------- */
+
+  function usarManual() {
+    const msg = $('#vizMsg');
+    const partes = $('#vizManual').value.split(/[\s,;]+/).filter(Boolean);
+    const nums = partes.map(Number);
+    if (partes.length < MIN_N || partes.length > MAX_N) { setMsg(msg, `Escribe entre ${MIN_N} y ${MAX_N} números.`, 'err'); return; }
+    if (nums.some(v => !Number.isInteger(v) || v < 1 || v > MAX_VALOR)) { setMsg(msg, `Solo enteros entre 1 y ${MAX_VALOR}.`, 'err'); return; }
+    setMsg(msg, '');
+    datos = nums;
+    recalcular();
+  }
+  function setMsg(el, text, kind) { el.textContent = text; el.className = 'msg' + (kind ? ' ' + kind : ''); }
+
+  /* ---------- Inicio ---------- */
+
+  function iniciarUI() {
+    const opciones = A.lista.map(a => `<option value="${a.id}">${a.nombre}</option>`).join('');
+    $('#vizAlgoA').innerHTML = opciones;
+    $('#vizAlgoB').innerHTML = '<option value="">— Ninguno —</option>' + opciones;
+    $('#vizAlgoA').value = selA;
+    $('#vizAlgoB').value = selB;
+
+    $('#vizAlgoA').addEventListener('change', (e) => { selA = e.target.value; construirPaneles(); tabla(); });
+    $('#vizAlgoB').addEventListener('change', (e) => { selB = e.target.value; construirPaneles(); tabla(); });
+    $('#vizTipo').addEventListener('change', nuevosDatos);
+    $('#vizSize').addEventListener('input', (e) => { $('#vizSizeOut').textContent = e.target.value; });
+    $('#vizSize').addEventListener('change', nuevosDatos);
+    $('#vizSpeed').addEventListener('input', () => { $('#vizSpeedOut').textContent = fmt(pasosPorSeg()) + ' pasos/s'; });
+    $('#vizNuevo').addEventListener('click', nuevosDatos);
+    $('#vizPlay').addEventListener('click', () => (jugando ? pausar() : iniciar()));
+    $('#vizStep').addEventListener('click', paso);
+    $('#vizEnd').addEventListener('click', saltarAlFinal);
+    $('#vizReset').addEventListener('click', reiniciar);
+    $('#vizUsar').addEventListener('click', usarManual);
+    $('#vizManual').addEventListener('keydown', (e) => { if (e.key === 'Enter') usarManual(); });
+    window.addEventListener('resize', () => paneles.forEach(dibujar));
+
+    $('#vizSpeedOut').textContent = fmt(pasosPorSeg()) + ' pasos/s';
+    nuevosDatos();
+  }
+
+  iniciarUI();
+})();
+
 </script>
 </body>
 </html>

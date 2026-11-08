@@ -130,6 +130,31 @@
     </div>
     <p class="hint">Stooge Sort se prueba solo hasta 1000 elementos porque con más tarda demasiado.</p>
   </section>
+
+  <section id="ordenamiento" class="card">
+    <h2>Medición de tiempo con arreglos grandes</h2>
+    <p class="sub">Selecciona uno o varios algoritmos y presiona «Ejecutar pruebas».</p>
+
+    <div class="algos" id="algoSelector">
+      <label style="--c:#ed5050"><input type="checkbox" class="algo-checkbox" value="bubble" checked> Bubble Sort</label>
+      <label style="--c:#41b3a3"><input type="checkbox" class="algo-checkbox" value="selection" checked> Selection Sort</label>
+      <label style="--c:#3498db"><input type="checkbox" class="algo-checkbox" value="insertion" checked> Insertion Sort</label>
+      <label style="--c:#e67e22"><input type="checkbox" class="algo-checkbox" value="gnome" checked> Gnome Sort</label>
+      <label style="--c:#f2a541"><input type="checkbox" class="algo-checkbox" value="exchange" checked> Exchange Sort</label>
+      <label style="--c:#7b5ea7"><input type="checkbox" class="algo-checkbox" value="stooge" checked> Stooge Sort</label>
+      <label style="--c:#5c940d"><input type="checkbox" class="algo-checkbox" value="merge" checked> Merge Sort</label>
+      <label style="--c:#16a085"><input type="checkbox" class="algo-checkbox" value="quick" checked> Quick Sort</label>
+    </div>
+
+    <div class="chartbox"><canvas id="sortChart" width="400" height="240"></canvas></div>
+    <div class="progress" id="progress" aria-hidden="true"><div class="progress-fill" id="progressFill"></div></div>
+
+    <div class="actions">
+      <button id="runBtn" class="btn" type="button">Ejecutar pruebas</button>
+      <span class="msg" id="statusText" style="margin-top:0" role="status" aria-live="polite">Presiona el botón para iniciar.</span>
+    </div>
+    <p class="hint">Stooge Sort se prueba solo hasta 1000 elementos porque con más tarda demasiado.</p>
+  </section>
 </main>
 </div>
 

@@ -317,3 +317,19 @@ td.c { font-family: var(--font-mono); font-size: .85rem; color: var(--accent-dar
 .gut-btns { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
 .gut-btns a { color: var(--accent-dark); font-size: .88rem; text-underline-offset: 3px; }
 .gut-btns .btn { padding: 7px 14px; font-size: .92rem; }
+
+/* ---------- Métricas ampliadas e inspector ---------- */
+.stat em { display: block; margin-top: 2px; font: 500 11px var(--font-mono); font-style: normal; color: var(--muted); }
+.card h3 { font-size: 1rem; margin: 20px 0 8px; }
+.kv { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px; margin: 0; }
+.kv > div { background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; min-width: 0; }
+.kv dt { font-size: .76rem; color: var(--muted); }
+.kv dd { margin: 0; font: 500 .92rem var(--font-mono); overflow-wrap: anywhere; }
+.fmap { display: flex; gap: 3px; }
+.fmap span { display: block; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; text-align: center; line-height: 44px; padding: 0 6px; border-radius: 6px; font: 500 11px var(--font-mono); color: #10261A; }
+.fmap .h { background: #CFE9D8; }
+.fmap .t { background: var(--leaf); }
+.fmap .d { background: var(--accent); color: #fff; }
+.bits { margin: 0; padding: 12px 14px; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; font: 12.5px/1.7 var(--font-mono); overflow: auto; max-height: 260px; }
+.fold { margin-top: 12px; border: 1px solid var(--line); border-radius: 8px; padding: 0 14px 12px; }
+.fold > summary { cursor: pointer; padding: 10px 0; font-weight: 600; }

@@ -106,6 +106,7 @@
         <button class="btn" id="dlHuff" type="button">Descargar comprimido (.huff)</button>
         <button class="btn" id="dlBack" type="button">Descargar recuperado (.txt)</button>
         <button class="btn ghost" id="dlBoth" type="button">Descargar ambos</button>
+        <button class="btn" id="toInspect" type="button">Inspeccionar este archivo</button>
         <button class="btn ghost" id="toggle" type="button">Ver tabla de códigos</button>
         <button class="btn ghost" id="toggleTree" type="button">Ver árbol de frecuencias</button>
       </div>
@@ -123,14 +124,38 @@
       </div>
     </div>
 
-    <div class="card">
-      <h2>4. Descomprimir</h2>
+    <div class="card" id="inspector">
+      <h2>4. Inspeccionar y descomprimir</h2>
+      <p class="sub">Carga un archivo .huff; no hace falta el .txt original. Primero se examina su estructura y después tú decides descomprimirlo.</p>
       <label class="btn ghost" for="huffIn" style="display:inline-block;cursor:pointer">Elegir archivo .huff</label>
       <input id="huffIn" type="file" accept=".huff" style="position:absolute;width:1px;height:1px;opacity:0">
       <div class="msg" id="decMsg" role="status" aria-live="polite"></div>
-      <div id="decBox" hidden>
-        <div class="preview" id="decPreview"></div>
-        <div class="actions"><button class="btn" id="decDl" type="button">Descargar .txt</button></div>
+      <div id="inspBox" hidden>
+        <h3>Metadatos del archivo</h3>
+        <dl class="kv" id="inspMeta"></dl>
+        <h3>Estructura interna</h3>
+        <div class="fmap" id="inspMap"></div>
+        <h3>Datos comprimidos (vista parcial en binario)</h3>
+        <pre class="bits" id="inspBits"></pre>
+        <details class="fold">
+          <summary>Códigos Huffman almacenados</summary>
+          <p class="hint">El formato guarda la longitud de cada código y los códigos se reconstruyen en forma canónica. Las frecuencias no se guardan.</p>
+          <div class="tablewrap"><table>
+            <thead><tr><th>Símbolo</th><th class="n">Bits</th><th>Código</th></tr></thead>
+            <tbody id="inspBody"></tbody>
+          </table></div>
+        </details>
+        <details class="fold">
+          <summary>Árbol de Huffman reconstruido</summary>
+          <p class="msg" id="inspTreeInfo"></p>
+          <div class="treewrap"><svg id="inspTree" class="ftree" role="img" aria-label="Árbol de Huffman reconstruido a partir del archivo"></svg></div>
+        </details>
+        <div class="actions"><button class="btn" id="inspDec" type="button">Descomprimir</button></div>
+        <div class="msg" id="decVerify" role="status" aria-live="polite"></div>
+        <div id="decBox" hidden>
+          <div class="preview" id="decPreview"></div>
+          <div class="actions"><button class="btn" id="decDl" type="button">Descargar .txt</button></div>
+        </div>
       </div>
     </div>
   </section>
@@ -196,20 +221,49 @@ function canonicalBits(lengths) {
   return table;
 }
 
-// Formato HUF1: "HUF1" | largo original (u32) | n símbolos (u16) | n × (byte, longitud) | bits
+// CRC32 del texto original: sirve para comprobar la integridad aunque el .txt ya no exista
+const CRC_TABLE = (() => {
+  const t = new Uint32Array(256);
+  for (let n = 0; n < 256; n++) {
+    let c = n;
+    for (let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+    t[n] = c >>> 0;
+  }
+  return t;
+})();
+function crc32(data) {
+  let c = 0xFFFFFFFF;
+  for (let i = 0; i < data.length; i++) c = CRC_TABLE[(c ^ data[i]) & 255] ^ (c >>> 8);
+  return (c ^ 0xFFFFFFFF) >>> 0;
+}
+const hex32 = (n) => n.toString(16).toUpperCase().padStart(8, '0');
+
+/* Formato HUF versión 2 (.huff). Enteros en big-endian.
+     0   4   "HUF" + 0x02          marca e identificación de versión
+     4   4   tamaño original       bytes del texto (u32)
+     8   2   n                     símbolos distintos (u16)
+    10   1   bits válidos          bits usados del último byte de datos (1–8; 0 si no hay datos)
+    11   4   CRC32 del original    comprobación de integridad (u32)
+    15   2n  tabla de códigos      n pares (byte, longitud del código), ordenados por byte
+    15+2n    datos comprimidos     códigos canónicos concatenados; el último byte se rellena con ceros */
+const HUF_VERSION = 2, HUF_FIXED = 15;
+
 function huffmanCompress(data) {
   const { freq, syms, lengths, root } = buildLengths(data);
   const bitsTable = canonicalBits(lengths);
   let totalBits = 0;
   for (const b of syms) totalBits += freq[b] * lengths[b];
   const n = syms.length;
-  const headerSize = 10 + n * 2;
+  const headerSize = HUF_FIXED + n * 2;
+  const crc = crc32(data);
   const out = new Uint8Array(headerSize + Math.ceil(totalBits / 8));
-  out.set([0x48, 0x55, 0x46, 0x31], 0);
+  out.set([0x48, 0x55, 0x46, HUF_VERSION], 0);
   const dv = new DataView(out.buffer);
   dv.setUint32(4, data.length);
   dv.setUint16(8, n);
-  let p = 10;
+  out[10] = totalBits ? ((totalBits - 1) % 8) + 1 : 0;
+  dv.setUint32(11, crc);
+  let p = HUF_FIXED;
   for (const b of syms) { out[p++] = b; out[p++] = lengths[b]; }
   let cur = 0, nb = 0, o = headerSize;
   for (let i = 0; i < data.length; i++) {
@@ -220,57 +274,84 @@ function huffmanCompress(data) {
     }
   }
   if (nb > 0) out[o] = cur << (8 - nb);
-  return { out, freq, syms, lengths, bitsTable, totalBits, headerSize, root };
+  return { out, freq, syms, lengths, bitsTable, totalBits, headerSize, root, crc };
 }
 
-function huffmanDecompress(bytes) {
-  if (bytes.length < 10 || bytes[0] !== 0x48 || bytes[1] !== 0x55 || bytes[2] !== 0x46 || bytes[3] !== 0x31)
-    throw new Error('El archivo no tiene el formato HUF1.');
+// Lee y valida la cabecera y la tabla SIN descomprimir (lo usa el inspector)
+function huffmanParse(bytes) {
+  if (bytes.length < 4 || bytes[0] !== 0x48 || bytes[1] !== 0x55 || bytes[2] !== 0x46)
+    throw new Error('El archivo no es un .huff de esta aplicación (falta la marca «HUF»).');
+  if (bytes[3] !== HUF_VERSION) throw new Error(`Versión de formato no soportada: ${bytes[3]} (se esperaba ${HUF_VERSION}).`);
+  if (bytes.length < HUF_FIXED) throw new Error('Cabecera incompleta.');
   const dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-  const len = dv.getUint32(4), n = dv.getUint16(8);
-  const headerSize = 10 + n * 2;
+  const origLen = dv.getUint32(4), n = dv.getUint16(8), validBits = bytes[10], crc = dv.getUint32(11);
+  const headerSize = HUF_FIXED + n * 2;
   if (n > 256 || bytes.length < headerSize) throw new Error('Cabecera incompleta.');
-  const out = new Uint8Array(len);
-  if (len === 0) return out;
-  if (n === 0) throw new Error('Tabla de códigos vacía.');
-  const lengths = new Array(256).fill(0);
-  for (let i = 0; i < n; i++) lengths[bytes[10 + i * 2]] = bytes[11 + i * 2];
-  const bitsTable = canonicalBits(lengths);
-  const L = [-1], R = [-1], leaf = [-1];
-  for (let s = 0; s < 256; s++) {
-    const bits = bitsTable[s];
-    if (!bits) continue;
-    let node = 0;
-    for (let k = 0; k < bits.length; k++) {
-      const arr = bits[k] ? R : L;
-      if (arr[node] === -1) { arr[node] = L.length; L.push(-1); R.push(-1); leaf.push(-1); }
-      node = arr[node];
-    }
-    leaf[node] = s;
+  if (origLen > 0 && n === 0) throw new Error('Tabla de códigos vacía.');
+  const dataBytes = bytes.length - headerSize;
+  if (dataBytes > 0 && (validBits < 1 || validBits > 8)) throw new Error('Bits válidos del último byte fuera de rango.');
+  const totalBits = dataBytes ? (dataBytes - 1) * 8 + validBits : 0;
+  const lengths = new Array(256).fill(0), syms = [];
+  for (let i = 0; i < n; i++) {
+    const s = bytes[HUF_FIXED + i * 2], l = bytes[HUF_FIXED + i * 2 + 1];
+    if (l === 0 || lengths[s]) throw new Error('Tabla de códigos inválida.');
+    lengths[s] = l; syms.push(s);
   }
-  let node = 0, o = 0;
-  outer: for (let i = headerSize; i < bytes.length; i++) {
-    const byte = bytes[i];
-    for (let k = 7; k >= 0; k--) {
-      node = ((byte >> k) & 1) ? R[node] : L[node];
-      if (node === -1) throw new Error('Datos corruptos.');
-      if (leaf[node] !== -1) {
-        out[o++] = leaf[node]; node = 0;
-        if (o === len) break outer;
+  if (n) { // desigualdad de Kraft: si no se cumple, esas longitudes no forman un árbol
+    const maxL = Math.max(...syms.map(s => lengths[s]));
+    let k = 0n;
+    for (const s of syms) k += 1n << BigInt(maxL - lengths[s]);
+    if (k > (1n << BigInt(maxL))) throw new Error('Las longitudes de código no forman un árbol válido.');
+  }
+  syms.sort((a, b) => a - b);
+  return { version: bytes[3], origLen, n, validBits, crc, headerSize, dataBytes, totalBits, lengths, syms,
+           bitsTable: canonicalBits(lengths), size: bytes.length };
+}
+
+// Descomprime y comprueba el CRC32. Devuelve { data, crcStored, crcCalc, crcOk }
+function huffmanDecompress(bytes, info) {
+  const h = info || huffmanParse(bytes);
+  const out = new Uint8Array(h.origLen);
+  if (h.origLen > 0) {
+    const L = [-1], R = [-1], leaf = [-1];
+    for (const s of h.syms) {
+      const bits = h.bitsTable[s];
+      let node = 0;
+      for (let k = 0; k < bits.length; k++) {
+        const arr = bits[k] ? R : L;
+        if (arr[node] === -1) { arr[node] = L.length; L.push(-1); R.push(-1); leaf.push(-1); }
+        node = arr[node];
+      }
+      leaf[node] = s;
+    }
+    let node = 0, o = 0, used = 0;
+    outer: for (let i = h.headerSize; i < bytes.length; i++) {
+      const byte = bytes[i];
+      for (let k = 7; k >= 0; k--) {
+        used++;
+        node = ((byte >> k) & 1) ? R[node] : L[node];
+        if (node === -1) throw new Error('Datos corruptos.');
+        if (leaf[node] !== -1) {
+          out[o++] = leaf[node]; node = 0;
+          if (o === h.origLen) break outer;
+        }
       }
     }
+    if (o !== h.origLen) throw new Error('Faltan datos en el archivo.');
+    if (used !== h.totalBits) throw new Error('La cantidad de bits de los datos no coincide con el encabezado.');
   }
-  if (o !== len) throw new Error('Faltan datos en el archivo.');
-  return out;
+  const crcCalc = crc32(out);
+  return { data: out, crcStored: h.crc, crcCalc, crcOk: crcCalc === h.crc };
 }
 
 /* ===== Interfaz Huffman ===== */
 const $ = (s) => document.querySelector(s);
 const fmtN = (n) => n.toLocaleString('es-MX');
 function fmtBytes(n) {
-  if (n < 1024) return n + ' B';
-  if (n < 1048576) return (n / 1024).toFixed(1) + ' KB';
-  return (n / 1048576).toFixed(2) + ' MB';
+  const a = Math.abs(n), sg = n < 0 ? '−' : '';
+  if (a < 1024) return sg + a + ' B';
+  if (a < 1048576) return sg + (a / 1024).toFixed(1) + ' KB';
+  return sg + (a / 1048576).toFixed(2) + ' MB';
 }
 function download(name, bytes, mime) {
   const url = URL.createObjectURL(new Blob([bytes], { type: mime }));
@@ -288,6 +369,8 @@ function formatStat(v, kind) {
   if (kind === 'bytes') return fmtBytes(Math.round(v));
   if (kind === 'pct') return v.toFixed(1) + ' %';
   if (kind === 'ms') return v.toFixed(2) + ' ms';
+  if (kind === 'int') return fmtN(Math.round(v));
+  if (kind === 'ratio') return v.toFixed(2) + ' : 1';
   return v.toFixed(2);
 }
 function countUp() {
@@ -360,11 +443,13 @@ function processBytes(raw, name) {
   const res = huffmanCompress(raw);
   const t1 = performance.now(); // Detener cronómetro
 
-  const back = huffmanDecompress(res.out);
-  const same = back.length === raw.length && back.every((v, i) => v === raw[i]);
-  
+  // Integridad: se descomprime el archivo generado y se compara byte a byte y por CRC32
+  const dec = huffmanDecompress(res.out);
+  const back = dec.data;
+  const same = back.length === raw.length && dec.crcOk && back.every((v, i) => v === raw[i]);
+
   res.timeMs = +(t1 - t0).toFixed(2); // Guardar el tiempo
-  
+
   current = { name, raw, res, back };
   showResult(raw, res, same);
 }
@@ -498,17 +583,19 @@ $('#gutMore').addEventListener('click', () => { if (gutNext) gutSearch(gutNext, 
 
 /* ===== Árbol de frecuencias =====
    Se arma a partir de la tabla de códigos: cada bit 0 va a la izquierda y cada 1 a la derecha.
-   Así el dibujo coincide exactamente con los códigos de la tabla. Cada nodo interno
-   guarda la suma de las frecuencias de las hojas que tiene debajo. */
+   Así el dibujo coincide exactamente con los códigos de la tabla. Si se conocen las frecuencias,
+   cada nodo interno guarda la suma de las hojas que tiene debajo; el inspector no las tiene
+   (el formato solo guarda longitudes), así que dibuja el mismo árbol sin pesos. */
 function buildTree(res) {
   const root = { w: 0 };
   for (const s of res.syms) {
     let n = root;
-    n.w += res.freq[s];
+    const w = res.freq ? res.freq[s] : 0;
+    n.w += w;
     for (const bit of res.bitsTable[s]) {
       const side = bit ? 'r' : 'l';
       n = n[side] || (n[side] = { w: 0 });
-      n.w += res.freq[s];
+      n.w += w;
     }
     n.sym = s;
   }
@@ -517,9 +604,9 @@ function buildTree(res) {
 
 const fmtShort = (n) => n >= 1e6 ? (n / 1e6).toFixed(1) + 'M' : n >= 1e4 ? Math.round(n / 1e3) + 'k' : String(n);
 
-function drawTree(res) {
+function drawTree(res, svg, infoEl) {
   const GAP = 46, LEVEL = 70, PAD = 30, R = 16;
-  const root = buildTree(res);
+  const root = buildTree(res), hasW = !!res.freq;
   let leaves = 0, depth = 0;
   // Posición: las hojas se reparten de izquierda a derecha; cada padre queda al centro de sus hijos
   (function place(n, d) {
@@ -531,7 +618,6 @@ function drawTree(res) {
     n.x = kids.reduce((s, k) => s + k.x, 0) / kids.length;
   })(root, 0);
 
-  const svg = $('#treeSvg');
   const W = PAD * 2 + (leaves - 1) * GAP, H = PAD * 2 + depth * LEVEL + 18;
   svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
   svg.setAttribute('width', W);
@@ -555,65 +641,34 @@ function drawTree(res) {
     }
     const g = el('g', { class: n.sym !== undefined ? 'leaf' : 'inner' });
     if (n.sym !== undefined) {
-      g.append(el('title', {}, `${symLabel(n.sym)} · frecuencia ${fmtN(n.w)} · código ${code}`));
+      g.append(el('title', {}, `${symLabel(n.sym)} · ${hasW ? 'frecuencia ' + fmtN(n.w) + ' · ' : ''}código ${code}`));
       g.append(el('circle', { cx: n.x, cy: n.y, r: R }));
       const label = symLabel(n.sym);
       g.append(el('text', { class: 'sym' + (label.length > 2 ? ' long' : ''), x: n.x, y: n.y }, label));
-      g.append(el('text', { class: 'w', x: n.x, y: n.y + R + 11 }, fmtShort(n.w)));
+      if (hasW) g.append(el('text', { class: 'w', x: n.x, y: n.y + R + 11 }, fmtShort(n.w)));
     } else {
-      g.append(el('title', {}, `Nodo interno · suma ${fmtN(n.w)}`));
+      g.append(el('title', {}, hasW ? `Nodo interno · suma ${fmtN(n.w)}` : 'Nodo interno'));
       g.append(el('circle', { cx: n.x, cy: n.y, r: R }));
-      g.append(el('text', { class: 'sum', x: n.x, y: n.y }, fmtShort(n.w)));
+      if (hasW) g.append(el('text', { class: 'sum', x: n.x, y: n.y }, fmtShort(n.w)));
     }
     nodes.append(g);
   })(root, '');
   svg.append(edges, nodes);
-  setMsg($('#treeInfo'), `${leaves} ${leaves === 1 ? 'hoja (símbolo distinto)' : 'hojas (símbolos distintos)'}, profundidad ${depth}. Izquierda = 0, derecha = 1. Pasa el cursor sobre una hoja para ver su código.`);
+  setMsg(infoEl, `${leaves} ${leaves === 1 ? 'hoja (símbolo distinto)' : 'hojas (símbolos distintos)'}, profundidad ${depth}. Izquierda = 0, derecha = 1. Pasa el cursor sobre una hoja para ver su código.`);
 }
 
-function showResult(raw, res, same) {
-  $('#result').hidden = false;
-  
-  const saving = 100 * (1 - res.out.length / raw.length);
-  const savedBytes = raw.length - res.out.length; // Cálculo exacto del ahorro
-  
-  const stat = (label, num, kind, main) => `<div class="stat${main ? ' main' : ''}"><b data-num="${num}" data-kind="${kind}">0</b><span>${label}</span></div>`;
-  
-  // Panel con las 5 métricas requeridas
-  $('#stats').innerHTML =
-    stat('Original', raw.length, 'bytes') +
-    stat('Comprimido', res.out.length, 'bytes') +
-    stat('Ahorro neto', savedBytes, 'bytes') +
-    stat('Reducción', saving, 'pct', true) +
-    stat('Tiempo de proceso', res.timeMs, 'ms'); 
-    
-  countUp();
-  
-  // Barras con bytes exactos y equivalente en KB/MB
-  const row = (label, cls, bytes) => `<div class="cmp-row"><span>${label}</span><div class="cmp-track"><div class="cmp-fill ${cls}"></div><span class="cmp-text">${fmtN(bytes)} bytes (${fmtBytes(bytes)})</span></div></div>`;
-  
-  const pct = Math.max(2, Math.min(100, 100 * res.out.length / raw.length));
-  $('#cmp').innerHTML = row('Original', '', raw.length) + row('Huffman', 'small', res.out.length);
-  
-  const fills = document.querySelectorAll('#cmp .cmp-fill');
-  requestAnimationFrame(() => requestAnimationFrame(() => {
-    fills[0].style.width = '100%';
-    fills[1].style.width = pct + '%';
-  }));
-
-  setMsg($('#verify'), same ? 'Verificado: al descomprimir se obtiene el mismo texto.' : 'Error: el texto descomprimido no coincide.', same ? 'ok' : 'err');
-
-  const rows = res.syms.slice().sort((a, b) => res.freq[b] - res.freq[a] || a - b);
-  const body = $('#body');
+// Llena una tabla de códigos; con frecuencias (resultado) o solo con longitudes (inspector)
+function fillCodeTable(body, res, withFreq) {
+  const len = (b) => res.bitsTable[b].length;
+  const rows = res.syms.slice().sort(withFreq
+    ? (a, b) => res.freq[b] - res.freq[a] || a - b
+    : (a, b) => len(a) - len(b) || a - b);
   body.replaceChildren();
   for (const b of rows) {
     const tr = document.createElement('tr');
-    const cells = [
-      [symLabel(b), ''],
-      [fmtN(res.freq[b]), 'n'],
-      [String(res.lengths[b]), 'n'],
-      [Array.from(res.bitsTable[b]).join(''), 'c']
-    ];
+    const cells = [[symLabel(b), '']];
+    if (withFreq) cells.push([fmtN(res.freq[b]), 'n']);
+    cells.push([String(len(b)), 'n'], [Array.from(res.bitsTable[b]).join(''), 'c']);
     for (const [text, cls] of cells) {
       const td = document.createElement('td');
       td.textContent = text;
@@ -623,7 +678,43 @@ function showResult(raw, res, same) {
     body.append(tr);
   }
   Array.from(body.children).forEach((tr, i) => { tr.style.animationDelay = Math.min(i, 24) * 25 + 'ms'; });
-  drawTree(res);
+}
+
+function showResult(raw, res, same) {
+  $('#result').hidden = false;
+
+  const out = res.out.length, saved = raw.length - out, saving = 100 * saved / raw.length;
+  const stat = (label, num, kind, main, sub) =>
+    `<div class="stat${main ? ' main' : ''}"><b data-num="${num}" data-kind="${kind}">0</b><span>${label}</span>${sub ? `<em>${sub}</em>` : ''}</div>`;
+
+  // Métricas: tamaños en bytes y KB/MB, ahorro, reducción, razón, símbolos distintos y tiempo
+  $('#stats').innerHTML =
+    stat('Original', raw.length, 'bytes', false, fmtN(raw.length) + ' bytes') +
+    stat('Comprimido', out, 'bytes', false, fmtN(out) + ' bytes') +
+    stat('Ahorro neto', saved, 'bytes', false, fmtN(saved) + ' bytes') +
+    stat('Reducción', saving, 'pct', true) +
+    stat('Razón de compresión', raw.length / out, 'ratio') +
+    stat('Símbolos distintos', res.syms.length, 'int') +
+    stat('Tiempo de proceso', res.timeMs, 'ms');
+
+  countUp();
+
+  // Barras con bytes exactos y equivalente en KB/MB
+  const row = (label, cls, bytes) => `<div class="cmp-row"><span>${label}</span><div class="cmp-track"><div class="cmp-fill ${cls}"></div><span class="cmp-text">${fmtN(bytes)} bytes (${fmtBytes(bytes)})</span></div></div>`;
+  const pct = Math.max(2, Math.min(100, 100 * out / raw.length));
+  $('#cmp').innerHTML = row('Original', '', raw.length) + row('Huffman', 'small', out);
+  const fills = document.querySelectorAll('#cmp .cmp-fill');
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    fills[0].style.width = '100%';
+    fills[1].style.width = pct + '%';
+  }));
+
+  setMsg($('#verify'), same
+    ? `Verificado: al descomprimir se obtiene el mismo texto (comparación byte a byte y CRC32 ${hex32(res.crc)}).`
+    : 'Error: el texto descomprimido no coincide.', same ? 'ok' : 'err');
+
+  fillCodeTable($('#body'), res, true);
+  drawTree(res, $('#treeSvg'), $('#treeInfo'));
   $('#result').scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
 }
 
@@ -678,25 +769,112 @@ $('#dlBoth').addEventListener('click', () => {
   setTimeout(dlRecovered, 400); // separados para que el navegador no bloquee la segunda descarga
 });
 
-let decoded = null, decName = 'texto';
+/* ===== Inspector del archivo comprimido ===== */
+let insp = null; // { bytes, name, info, decoded }
+
+function inspectBytes(bytes, name) {
+  const m = $('#decMsg');
+  insp = null;
+  $('#decBox').hidden = true;
+  setMsg($('#decVerify'), '');
+  try {
+    const info = huffmanParse(bytes);
+    insp = { bytes, name, info, decoded: null };
+    renderInspector(insp);
+    $('#inspBox').hidden = false;
+    setMsg(m, `Archivo cargado: ${name}. La estructura se leyó sin usar el .txt original; aún no se ha descomprimido.`, 'ok');
+  } catch (err) {
+    $('#inspBox').hidden = true;
+    setMsg(m, err.message, 'err');
+  }
+}
+
+function renderInspector({ bytes, name, info }) {
+  const dot = name.lastIndexOf('.');
+  const base = dot > 0 ? name.slice(0, dot) : name, ext = dot > 0 ? name.slice(dot) : '(sin extensión)';
+  const saved = info.origLen - bytes.length;
+  const rows = [
+    ['Nombre', base], ['Extensión', ext],
+    ['Formato', `HUF · versión ${info.version}`],
+    ['Tamaño original', `${fmtN(info.origLen)} bytes (${fmtBytes(info.origLen)})`],
+    ['Tamaño comprimido', `${fmtN(bytes.length)} bytes (${fmtBytes(bytes.length)})`],
+    ['Ahorro', `${fmtN(saved)} bytes (${fmtBytes(saved)})`],
+    ['Reducción', info.origLen ? (100 * saved / info.origLen).toFixed(1) + ' %' : '—'],
+    ['Razón de compresión', info.origLen ? (info.origLen / bytes.length).toFixed(2) + ' : 1' : '—'],
+    ['Símbolos distintos', fmtN(info.n)],
+    ['Bits codificados', fmtN(info.totalBits)],
+    ['Bits válidos del último byte', `${info.validBits} de 8`],
+    ['CRC32 del original', hex32(info.crc)]
+  ];
+  const kv = $('#inspMeta');
+  kv.replaceChildren();
+  for (const [k, v] of rows) {
+    const d = document.createElement('div'), dt = document.createElement('dt'), dd = document.createElement('dd');
+    dt.textContent = k; dd.textContent = v;
+    d.append(dt, dd); kv.append(d);
+  }
+
+  // Mapa proporcional del archivo: cabecera fija, tabla de códigos y datos
+  const parts = [['h', 'Cabecera', HUF_FIXED], ['t', 'Tabla de códigos', info.n * 2], ['d', 'Datos', info.dataBytes]].filter(p => p[2] > 0);
+  const map = $('#inspMap');
+  map.replaceChildren();
+  for (const [cls, label, size] of parts) {
+    const sp = document.createElement('span');
+    sp.className = cls;
+    sp.style.flex = Math.max(size / bytes.length, 0.12) * 100 + ' 1 0';
+    sp.textContent = `${label} · ${fmtN(size)} B`;
+    sp.title = sp.textContent;
+    map.append(sp);
+  }
+
+  // Vista parcial de los datos: primeros 64 bytes en binario, 4 por línea
+  const SHOW = Math.min(info.dataBytes, 64), lines = [];
+  for (let i = 0; i < SHOW; i += 4) {
+    const grp = [];
+    for (let j = i; j < Math.min(i + 4, SHOW); j++) grp.push(bytes[info.headerSize + j].toString(2).padStart(8, '0'));
+    lines.push(i.toString(16).toUpperCase().padStart(4, '0') + '  ' + grp.join(' '));
+  }
+  if (info.dataBytes > SHOW) lines.push(`… y ${fmtN(info.dataBytes - SHOW)} bytes más`);
+  if (info.dataBytes) lines.push(`(en el último byte solo cuentan los primeros ${info.validBits} bits; el resto es relleno)`);
+  $('#inspBits').textContent = lines.join('\n') || '(sin datos)';
+
+  fillCodeTable($('#inspBody'), info, false);
+  drawTree(info, $('#inspTree'), $('#inspTreeInfo'));
+}
+
 $('#huffIn').addEventListener('change', async (e) => {
   const f = e.target.files[0];
   if (!f) return;
-  const m = $('#decMsg');
-  decoded = null;
-  try {
-    decoded = huffmanDecompress(new Uint8Array(await f.arrayBuffer()));
-    decName = f.name.replace(/\.huff$/i, '');
-    setMsg(m, 'Descomprimido: ' + fmtN(decoded.length) + ' bytes.', 'ok');
-    $('#decPreview').textContent = new TextDecoder('utf-8').decode(decoded.subarray(0, 1500)) + (decoded.length > 1500 ? '\n…' : '');
-    $('#decBox').hidden = false;
-  } catch (err) {
-    setMsg(m, err.message, 'err');
-    $('#decBox').hidden = true;
-  }
+  inspectBytes(new Uint8Array(await f.arrayBuffer()), f.name);
   e.target.value = ''; // permite volver a elegir el mismo archivo
 });
-$('#decDl').addEventListener('click', () => decoded && download(decName + '_recuperado.txt', decoded, 'text/plain;charset=utf-8'));
+$('#toInspect').addEventListener('click', () => {
+  if (!current) return;
+  inspectBytes(current.res.out, current.name + '.huff');
+  $('#inspector').scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
+});
+// La descompresión es una acción explícita, separada de la inspección
+$('#inspDec').addEventListener('click', () => {
+  if (!insp) return;
+  const v = $('#decVerify');
+  try {
+    const t0 = performance.now();
+    const r = huffmanDecompress(insp.bytes, insp.info);
+    const ms = (performance.now() - t0).toFixed(2);
+    insp.decoded = r.data;
+    $('#decPreview').textContent = new TextDecoder('utf-8').decode(r.data.subarray(0, 1500)) + (r.data.length > 1500 ? '\n…' : '');
+    $('#decBox').hidden = false;
+    setMsg(v, r.crcOk
+      ? `Descomprimido: ${fmtN(r.data.length)} bytes en ${ms} ms. Integridad verificada: el CRC32 calculado (${hex32(r.crcCalc)}) coincide con el guardado en el archivo.`
+      : `Error de integridad: CRC32 calculado ${hex32(r.crcCalc)} distinto del guardado ${hex32(r.crcStored)}. El archivo puede estar dañado.`, r.crcOk ? 'ok' : 'err');
+  } catch (err) {
+    $('#decBox').hidden = true;
+    setMsg(v, err.message, 'err');
+  }
+});
+$('#decDl').addEventListener('click', () => {
+  if (insp && insp.decoded) download(insp.name.replace(/\.huff$/i, '') + '_recuperado.txt', insp.decoded, 'text/plain;charset=utf-8');
+});
 </script>
 </body>
 </html>

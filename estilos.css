@@ -333,3 +333,20 @@ td.c { font-family: var(--font-mono); font-size: .85rem; color: var(--accent-dar
 .bits { margin: 0; padding: 12px 14px; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; font: 12.5px/1.7 var(--font-mono); overflow: auto; max-height: 260px; }
 .fold { margin-top: 12px; border: 1px solid var(--line); border-radius: 8px; padding: 0 14px 12px; }
 .fold > summary { cursor: pointer; padding: 10px 0; font-weight: 600; }
+
+/* ---------- Flujo de la aplicación ---------- */
+.flow { list-style: none; counter-reset: paso; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.flow li {
+  counter-increment: paso; flex: 1 1 140px; display: flex; align-items: center; gap: 8px; padding: 8px 12px;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 999px; color: var(--muted);
+  font-size: .82rem; font-weight: 600; transition: color .3s, background .3s, border-color .3s;
+}
+.flow li::before {
+  content: counter(paso); flex: none; width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center;
+  background: var(--bg); border: 1px solid var(--line); font: 600 11px var(--font-mono); transition: background .3s, color .3s;
+}
+.flow li.next { color: var(--ink); border: 1px dashed var(--accent); }
+.flow li.done { color: var(--accent-dark); background: var(--accent-soft); border-color: var(--accent); }
+.flow li.done::before { content: "✓"; background: var(--accent); border-color: var(--accent); color: #fff; }
+.steps { margin: 8px 0 0; padding-left: 28px; font: 12.5px/1.9 var(--font-mono); overflow-x: auto; }
+.steps .gap { list-style: none; color: var(--muted); }

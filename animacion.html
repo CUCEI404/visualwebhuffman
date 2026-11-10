@@ -108,7 +108,7 @@
 
   <section id="ordenamiento" class="card">
     <h2>Medición de tiempo con arreglos grandes</h2>
-    <p class="sub">Selecciona uno o varios algoritmos y presiona «Ejecutar pruebas».</p>
+    <p class="sub">Selecciona uno o varios algoritmos y presiona «Ejecutar pruebas». Todos reciben el mismo arreglo aleatorio en cada tamaño.</p>
 
     <div class="algos" id="algoSelector">
       <label style="--c:#ed5050"><input type="checkbox" class="algo-checkbox" value="bubble" checked> Bubble Sort</label>
@@ -121,39 +121,27 @@
       <label style="--c:#16a085"><input type="checkbox" class="algo-checkbox" value="quick" checked> Quick Sort</label>
     </div>
 
-    <div class="chartbox"><canvas id="sortChart" width="400" height="240"></canvas></div>
+    <div class="actions" style="margin:0 0 12px">
+      <label class="hint" style="margin:0;display:inline-flex;align-items:center;gap:8px;cursor:pointer">
+        <input type="checkbox" id="logScale" checked> Escala logarítmica en el eje Y (permite ver juntos los rápidos y los lentos)
+      </label>
+    </div>
+
+    <div class="chartbox" style="height:340px"><canvas id="sortChart"></canvas></div>
     <div class="progress" id="progress" aria-hidden="true"><div class="progress-fill" id="progressFill"></div></div>
 
     <div class="actions">
       <button id="runBtn" class="btn" type="button">Ejecutar pruebas</button>
       <span class="msg" id="statusText" style="margin-top:0" role="status" aria-live="polite">Presiona el botón para iniciar.</span>
     </div>
-    <p class="hint">Stooge Sort se prueba solo hasta 1000 elementos porque con más tarda demasiado.</p>
-  </section>
+    <p class="hint">Cada tiempo es la <b>mediana</b> de varias ejecuciones (después de una de calentamiento) y se verifica que el resultado quede ordenado. Stooge Sort se prueba solo hasta 1000 elementos porque con más tarda demasiado; en la tabla aparece como «—».</p>
 
-  <section id="ordenamiento" class="card">
-    <h2>Medición de tiempo con arreglos grandes</h2>
-    <p class="sub">Selecciona uno o varios algoritmos y presiona «Ejecutar pruebas».</p>
-
-    <div class="algos" id="algoSelector">
-      <label style="--c:#ed5050"><input type="checkbox" class="algo-checkbox" value="bubble" checked> Bubble Sort</label>
-      <label style="--c:#41b3a3"><input type="checkbox" class="algo-checkbox" value="selection" checked> Selection Sort</label>
-      <label style="--c:#3498db"><input type="checkbox" class="algo-checkbox" value="insertion" checked> Insertion Sort</label>
-      <label style="--c:#e67e22"><input type="checkbox" class="algo-checkbox" value="gnome" checked> Gnome Sort</label>
-      <label style="--c:#f2a541"><input type="checkbox" class="algo-checkbox" value="exchange" checked> Exchange Sort</label>
-      <label style="--c:#7b5ea7"><input type="checkbox" class="algo-checkbox" value="stooge" checked> Stooge Sort</label>
-      <label style="--c:#5c940d"><input type="checkbox" class="algo-checkbox" value="merge" checked> Merge Sort</label>
-      <label style="--c:#16a085"><input type="checkbox" class="algo-checkbox" value="quick" checked> Quick Sort</label>
+    <div class="tablewrap" id="timeTableBox" hidden>
+      <table class="viz-table">
+        <thead id="timeHead"></thead>
+        <tbody id="timeBody"></tbody>
+      </table>
     </div>
-
-    <div class="chartbox"><canvas id="sortChart" width="400" height="240"></canvas></div>
-    <div class="progress" id="progress" aria-hidden="true"><div class="progress-fill" id="progressFill"></div></div>
-
-    <div class="actions">
-      <button id="runBtn" class="btn" type="button">Ejecutar pruebas</button>
-      <span class="msg" id="statusText" style="margin-top:0" role="status" aria-live="polite">Presiona el botón para iniciar.</span>
-    </div>
-    <p class="hint">Stooge Sort se prueba solo hasta 1000 elementos porque con más tarda demasiado.</p>
   </section>
 </main>
 </div>
@@ -320,72 +308,151 @@ function measureTime(sortFn, array) {
   const runBtn = document.getElementById('runBtn');
   const statusText = document.getElementById('statusText');
   const sizes = [500, 1000, 3000, 5000, 8000, 10000];
+  const STOOGE_MAX = 1000;
+  const pause = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+  const setStatus = (t, cls) => { statusText.textContent = t; statusText.className = 'msg' + (cls ? ' ' + cls : ''); };
 
   if (typeof Chart === 'undefined') {
-    statusText.textContent = 'No se pudo cargar Chart.js. Revisa tu conexión a internet y recarga la página.';
-    statusText.className = 'msg err';
+    setStatus('No se pudo cargar Chart.js. Revisa tu conexión a internet y recarga la página.', 'err');
     runBtn.disabled = true;
     return;
   }
 
+  const logBox = document.getElementById('logScale');
+  const fmtTime = (v) => v === null ? '—' : v.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
   const chart = new Chart(document.getElementById('sortChart').getContext('2d'), {
     type: 'line',
-    data: { labels: sizes.map(s => s + ' elem'), datasets: [] },
+    data: { labels: sizes.map(s => s.toLocaleString('es-MX')), datasets: [] },
     options: {
       responsive: true,
-      animation: { duration: 900, easing: 'easeOutQuart' },
-      plugins: { title: { display: true, text: 'Rendimiento de algoritmos' } },
+      maintainAspectRatio: false,
+      animation: { duration: 700, easing: 'easeOutQuart' },
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        title: { display: true, text: 'Rendimiento de algoritmos (arreglos aleatorios)' },
+        legend: { position: 'bottom' },
+        tooltip: {
+          callbacks: {
+            label: (ctx) => ctx.parsed.y === null || ctx.parsed.y === undefined
+              ? ctx.dataset.label + ': sin medir'
+              : ctx.dataset.label + ': ' + fmtTime(ctx.parsed.y) + ' ms'
+          }
+        }
+      },
       scales: {
         x: { title: { display: true, text: 'Cantidad de elementos' } },
-        y: { title: { display: true, text: 'Tiempo (ms)' }, beginAtZero: true }
+        y: { type: 'logarithmic', title: { display: true, text: 'Tiempo (ms)' } }
       }
     }
   });
 
+  function aplicarEscala() {
+    const log = logBox.checked;
+    chart.options.scales.y.type = log ? 'logarithmic' : 'linear';
+    chart.options.scales.y.beginAtZero = !log;
+    chart.options.scales.y.title.text = log ? 'Tiempo (ms, escala logarítmica)' : 'Tiempo (ms)';
+    chart.update();
+  }
+  logBox.addEventListener('change', aplicarEscala);
+  aplicarEscala();
+
+  // Mediana de varias ejecuciones (tras una de calentamiento) y verificación de que quede ordenado.
+  // Menos repeticiones cuando una sola ejecución ya tarda mucho.
+  function medir(fn, array) {
+    const esperado = array.slice().sort((x, y) => x - y);
+    const calentamiento = performance.now();
+    const salida = fn(array);
+    const primera = performance.now() - calentamiento;
+    const ok = salida.length === esperado.length && salida.every((v, i) => v === esperado[i]);
+    const reps = primera > 400 ? 1 : primera > 80 ? 3 : 5;
+    const tiempos = [];
+    for (let r = 0; r < reps; r++) {
+      const t0 = performance.now();
+      fn(array);
+      tiempos.push(performance.now() - t0);
+    }
+    tiempos.sort((x, y) => x - y);
+    const mediana = tiempos[Math.floor(tiempos.length / 2)];
+    return { ms: +mediana.toFixed(3), ok };
+  }
+
+  function llenarTabla(keys, data) {
+    document.getElementById('timeHead').innerHTML =
+      '<tr><th>Algoritmo</th>' + sizes.map(s => `<th class="n">${s.toLocaleString('es-MX')}</th>`).join('') + '</tr>';
+    const minimos = sizes.map((_, i) => Math.min(...keys.map(k => data[k][i]).filter(v => v !== null)));
+    document.getElementById('timeBody').innerHTML = keys.map(k => {
+      const celdas = data[k].map((v, i) => `<td class="n${v !== null && v === minimos[i] ? ' best' : ''}">${v === null ? '—' : fmtTime(v)}</td>`).join('');
+      return `<tr><td><span class="dot" style="background:${algorithms[k].color}"></span>${algorithms[k].name.replace(' (ms)', '')}</td>${celdas}</tr>`;
+    }).join('');
+    document.getElementById('timeTableBox').hidden = false;
+  }
+
   runBtn.addEventListener('click', async () => {
     const selected = document.querySelectorAll('.algo-checkbox:checked');
     if (selected.length === 0) {
-      statusText.textContent = 'Selecciona al menos un algoritmo.';
-      statusText.className = 'msg err';
+      setStatus('Selecciona al menos un algoritmo.', 'err');
       return;
     }
 
+    const boxes = document.querySelectorAll('.algo-checkbox');
+    boxes.forEach(cb => cb.disabled = true);
     runBtn.disabled = true;
     runBtn.classList.add('busy');
     const progress = document.getElementById('progress'), fill = document.getElementById('progressFill');
     fill.style.width = '0%';
     progress.classList.add('on');
-    statusText.className = 'msg';
+    setStatus('');
+
     const activeKeys = Array.from(selected).map(cb => cb.value);
     const data = {};
     activeKeys.forEach(key => data[key] = []);
+    const fallos = [];
+    const total = sizes.length * activeKeys.length;
+    let hechos = 0;
 
-    for (const [si, size] of sizes.entries()) {
-      statusText.textContent = 'Calculando con ' + size + ' elementos…';
-      await new Promise(resolve => setTimeout(resolve, 30));
-      const randomData = generateRandomArray(size);
-      for (const key of activeKeys) {
-        // Stooge Sort se limita para evitar tiempos de espera excesivos
-        if (key === 'stooge' && size > 1000) data[key].push(null);
-        else data[key].push(measureTime(algorithms[key].fn, randomData));
+    try {
+      for (const size of sizes) {
+        const randomData = generateRandomArray(size);   // mismo arreglo para todos los algoritmos
+        for (const key of activeKeys) {
+          setStatus('Midiendo ' + algorithms[key].name.replace(' (ms)', '') + ' con ' + size.toLocaleString('es-MX') + ' elementos…');
+          await pause(30);                              // deja respirar a la interfaz
+          if (key === 'stooge' && size > STOOGE_MAX) {
+            data[key].push(null);
+          } else {
+            const r = medir(algorithms[key].fn, randomData);
+            data[key].push(r.ms);
+            if (!r.ok) fallos.push(algorithms[key].name.replace(' (ms)', '') + ' (' + size + ')');
+          }
+          hechos++;
+          fill.style.width = (hechos / total * 100) + '%';
+        }
       }
-      fill.style.width = ((si + 1) / sizes.length * 100) + '%';
-    }
 
-    chart.data.datasets = activeKeys.map(key => ({
-      label: algorithms[key].name,
-      data: data[key],
-      borderColor: algorithms[key].color,
-      backgroundColor: algorithms[key].color + '33',
-      fill: true,
-      tension: 0.3
-    }));
-    chart.update();
-    statusText.textContent = 'Prueba completada.';
-    statusText.className = 'msg ok';
-    runBtn.disabled = false;
-    runBtn.classList.remove('busy');
-    setTimeout(() => progress.classList.remove('on'), 700);
+      chart.data.datasets = activeKeys.map(key => ({
+        label: algorithms[key].name,
+        // En escala logarítmica no se puede dibujar 0: se usa un mínimo simbólico
+        data: data[key].map(v => v === null ? null : Math.max(v, 0.001)),
+        borderColor: algorithms[key].color,
+        backgroundColor: algorithms[key].color + '33',
+        fill: false,
+        spanGaps: false,
+        tension: 0.25,
+        pointRadius: 3
+      }));
+      chart.update();
+      llenarTabla(activeKeys, data);
+
+      if (fallos.length) setStatus('Prueba completada, pero hubo resultados mal ordenados: ' + fallos.join(', ') + '.', 'err');
+      else setStatus('Prueba completada: todos los resultados quedaron correctamente ordenados.', 'ok');
+    } catch (err) {
+      setStatus('La prueba se interrumpió: ' + err.message, 'err');
+    } finally {
+      boxes.forEach(cb => cb.disabled = false);
+      runBtn.disabled = false;
+      runBtn.classList.remove('busy');
+      setTimeout(() => progress.classList.remove('on'), 700);
+    }
   });
 })();
 </script>

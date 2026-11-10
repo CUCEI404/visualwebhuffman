@@ -29,7 +29,7 @@
     <div class="hero-text">
       <p class="eyebrow">David Huffman · 1952</p>
       <h2>Compresión Huffman</h2>
-      <p class="lead">Las letras más comunes reciben códigos cortos y las raras, códigos largos. Sube un .txt y mira cuánto se ahorra. Puedes bajar libros de <a href="https://www.gutenberg.org" target="_blank" rel="noopener">Project Gutenberg</a> en formato «Plain Text UTF-8».</p>
+      <p class="lead">Las letras más comunes reciben códigos cortos y las raras, códigos largos. Busca un libro de <a href="https://www.gutenberg.org" target="_blank" rel="noopener">Project Gutenberg</a> o sube tu propio .txt y mira cuánto se ahorra.</p>
     </div>
     <svg class="tree" viewBox="0 0 280 200" role="img" aria-label="Árbol de Huffman: e vale 0, a vale 10, t vale 110, o vale 111">
       <line class="ln" pathLength="1" style="--d:.3s" x1="140" y1="22" x2="80" y2="72"/>
@@ -61,8 +61,31 @@
 
   <section id="huffman" class="stack">
 
+    <div class="card" id="gutCard">
+      <h2>1. Buscar libro en Project Gutenberg</h2>
+      <p class="sub">Busca por título, autor o palabras clave y elige un libro en texto plano para usarlo como entrada del compresor.</p>
+      <form class="gut-form" id="gutForm">
+        <label class="sr" for="gutQ">Título, autor o palabras clave</label>
+        <input id="gutQ" type="search" placeholder="Ej.: don quijote, dickens, pride and prejudice" autocomplete="off">
+        <label class="sr" for="gutLang">Idioma</label>
+        <select id="gutLang">
+          <option value="">Todos los idiomas</option>
+          <option value="es">Español</option>
+          <option value="en">English</option>
+          <option value="fr">Français</option>
+          <option value="de">Deutsch</option>
+          <option value="it">Italiano</option>
+          <option value="pt">Português</option>
+        </select>
+        <button class="btn" type="submit" id="gutBtn">Buscar</button>
+      </form>
+      <div class="msg" id="gutMsg" role="status" aria-live="polite"></div>
+      <ul class="gut-list" id="gutList"></ul>
+      <div class="actions" id="gutMoreBox" hidden><button class="btn ghost" id="gutMore" type="button">Ver más resultados</button></div>
+    </div>
+
     <div class="card">
-      <h2>1. Subir texto</h2>
+      <h2>2. O sube tu propio texto</h2>
       <label class="drop" id="drop" for="fileIn">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4M7 9l5-5 5 5M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg>
         <span id="dropText">Elige un archivo .txt o suéltalo aquí</span>
@@ -75,7 +98,7 @@
     </div>
 
     <div class="card" id="result" hidden>
-      <h2>2. Resultado</h2>
+      <h2>3. Resultado</h2>
       <div class="stats" id="stats"></div>
       <div class="cmp" id="cmp"></div>
       <div class="msg" id="verify"></div>
@@ -101,7 +124,7 @@
     </div>
 
     <div class="card">
-      <h2>3. Descomprimir</h2>
+      <h2>4. Descomprimir</h2>
       <label class="btn ghost" for="huffIn" style="display:inline-block;cursor:pointer">Elegir archivo .huff</label>
       <input id="huffIn" type="file" accept=".huff" style="position:absolute;width:1px;height:1px;opacity:0">
       <div class="msg" id="decMsg" role="status" aria-live="polite"></div>
@@ -345,6 +368,133 @@ function processBytes(raw, name) {
   current = { name, raw, res, back };
   showResult(raw, res, same);
 }
+
+/* ===== Buscador de Project Gutenberg =====
+   El catálogo se consulta con Gutendex, una API pública y gratuita sobre el catálogo de Project Gutenberg.
+   El texto se descarga desde el navegador. Como gutenberg.org normalmente no permite leer sus archivos
+   desde otra página (CORS), primero se intenta directo y, si falla, a través de proxies públicos gratuitos. */
+const GUT_API = 'https://gutendex.com/books/';
+const GUT_PROXIES = [
+  (u) => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u),
+  (u) => 'https://corsproxy.io/?url=' + encodeURIComponent(u)
+];
+let gutNext = null, gutBusy = false;
+
+async function fetchTimeout(url, ms, kind) {
+  const ctl = new AbortController();
+  const timer = setTimeout(() => ctl.abort(), ms);
+  try {
+    const r = await fetch(url, { signal: ctl.signal });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    return kind === 'json' ? await r.json() : new Uint8Array(await r.arrayBuffer());
+  } finally { clearTimeout(timer); }
+}
+
+// Dirección del texto plano de un libro (se prefiere UTF-8); null si no hay versión en texto
+function gutTextUrl(book) {
+  const f = book.formats || {};
+  const keys = Object.keys(f).filter(k => k.startsWith('text/plain') && !/\.zip$/i.test(f[k]));
+  if (!keys.length) return null;
+  keys.sort((a, b) => /utf-8/i.test(b) - /utf-8/i.test(a));
+  return f[keys[0]];
+}
+
+async function gutDownload(url) {
+  const intentos = [url, ...GUT_PROXIES.map(p => p(url))];
+  let ultimo = null;
+  for (const u of intentos) {
+    try {
+      const raw = await fetchTimeout(u, 45000, 'bytes');
+      const head = new TextDecoder().decode(raw.subarray(0, 300)).trimStart().toLowerCase();
+      if (!raw.length || head.startsWith('<!doctype') || head.startsWith('<html')) throw new Error('la respuesta no es un texto');
+      return raw;
+    } catch (e) { ultimo = e; }
+  }
+  throw new Error('No se pudo descargar el texto desde el navegador (' + (ultimo ? ultimo.message : 'sin respuesta') +
+    '). Usa «Ver en Gutenberg», descarga el .txt y súbelo en la sección 2.');
+}
+
+function gutRender(books, append) {
+  const list = $('#gutList');
+  if (!append) list.replaceChildren();
+  for (const b of books) {
+    const li = document.createElement('li');
+    li.className = 'gut-item';
+    const info = document.createElement('div');
+    info.className = 'gut-info';
+    const title = document.createElement('div');
+    title.className = 'gut-title';
+    title.textContent = b.title;
+    const meta = document.createElement('div');
+    meta.className = 'gut-meta';
+    const authors = (b.authors || []).map(a => a.name).join('; ') || 'Autor desconocido';
+    meta.textContent = `${authors} · ${(b.languages || []).join(', ') || '—'} · ${fmtN(b.download_count || 0)} descargas · #${b.id}`;
+    info.append(title, meta);
+    const btns = document.createElement('div');
+    btns.className = 'gut-btns';
+    const link = document.createElement('a');
+    link.href = 'https://www.gutenberg.org/ebooks/' + encodeURIComponent(b.id);
+    link.target = '_blank'; link.rel = 'noopener';
+    link.textContent = 'Ver en Gutenberg';
+    const use = document.createElement('button');
+    use.type = 'button'; use.className = 'btn'; use.textContent = 'Usar este libro';
+    use.addEventListener('click', () => gutUse(b, use));
+    btns.append(link, use);
+    li.append(info, btns);
+    list.append(li);
+  }
+}
+
+async function gutSearch(url, append) {
+  if (gutBusy) return;
+  gutBusy = true;
+  const msg = $('#gutMsg');
+  $('#gutBtn').disabled = true; $('#gutMore').disabled = true;
+  setMsg(msg, 'Buscando en Project Gutenberg…');
+  try {
+    const data = await fetchTimeout(url, 20000, 'json');
+    const books = (data.results || []).filter(b => gutTextUrl(b));
+    gutNext = data.next ? data.next.replace(/^http:/, 'https:') : null;
+    gutRender(books, append);
+    const shown = $('#gutList').children.length;
+    setMsg(msg, shown
+      ? `${fmtN(data.count)} resultados en total; mostrando ${shown} con texto disponible.`
+      : 'No se encontraron libros con texto para esa búsqueda.');
+  } catch (e) {
+    setMsg(msg, 'No se pudo consultar el catálogo (' + (e.name === 'AbortError' ? 'tiempo agotado' : e.message) + '). Intenta de nuevo en un momento.', 'err');
+  } finally {
+    gutBusy = false;
+    $('#gutBtn').disabled = false; $('#gutMore').disabled = false;
+    $('#gutMoreBox').hidden = !gutNext;
+  }
+}
+
+// Descarga el libro elegido y lo manda al compresor igual que un .txt subido
+async function gutUse(book, btn) {
+  const msg = $('#gutMsg');
+  btn.disabled = true; btn.classList.add('busy');
+  setMsg(msg, `Descargando «${book.title}»…`);
+  try {
+    const raw = await gutDownload(gutTextUrl(book));
+    if (raw.length > MAX_BYTES) throw new Error(`El texto pesa ${fmtBytes(raw.length)}; el máximo es ${fmtBytes(MAX_BYTES)}.`);
+    setMsg($('#msg'), '');
+    processBytes(raw, 'pg' + book.id);
+    setMsg(msg, `Libro cargado: «${book.title}» (${fmtBytes(raw.length)}).`, 'ok');
+  } catch (e) {
+    setMsg(msg, e.message, 'err');
+  } finally {
+    btn.disabled = false; btn.classList.remove('busy');
+  }
+}
+
+$('#gutForm').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const q = $('#gutQ').value.trim();
+  if (!q) { setMsg($('#gutMsg'), 'Escribe un título, autor o palabra clave.', 'err'); return; }
+  const lang = $('#gutLang').value;
+  gutSearch(GUT_API + '?search=' + encodeURIComponent(q) + (lang ? '&languages=' + lang : ''), false);
+});
+$('#gutMore').addEventListener('click', () => { if (gutNext) gutSearch(gutNext, true); });
 
 /* ===== Árbol de frecuencias =====
    Se arma a partir de la tabla de códigos: cada bit 0 va a la izquierda y cada 1 a la derecha.

@@ -294,3 +294,26 @@ td.c { font-family: var(--font-mono); font-size: .85rem; color: var(--accent-dar
 .viz-table .viz-tag { font: 600 10px var(--font-mono); margin-left: 8px; padding: 1px 5px; border-radius: 4px; background: var(--accent); color: #fff; }
 .viz-table .viz-tag.b { background: var(--ink); }
 .viz-note { margin: 12px 0 0; font-size: .85rem; color: var(--muted); }
+
+/* ---------- Buscador de Project Gutenberg ---------- */
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.gut-form { display: flex; flex-wrap: wrap; gap: 10px; }
+.gut-form input[type=search], .gut-form select {
+  font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--line);
+  border-radius: 8px; padding: 10px 12px; min-width: 0;
+}
+.gut-form input[type=search] { flex: 1 1 260px; }
+.gut-form input:focus, .gut-form select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.gut-list { list-style: none; margin: 14px 0 0; padding: 0; display: grid; gap: 8px; }
+.gut-item {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 14px;
+  padding: 12px 14px; background: var(--bg); border: 1px solid var(--line); border-radius: 10px;
+  transition: border-color .2s, background .2s;
+}
+.gut-item:hover { border-color: var(--accent); background: var(--accent-soft); }
+.gut-info { flex: 1 1 260px; min-width: 0; }
+.gut-title { font-weight: 600; overflow-wrap: anywhere; }
+.gut-meta { color: var(--muted); font-size: .85rem; overflow-wrap: anywhere; }
+.gut-btns { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
+.gut-btns a { color: var(--accent-dark); font-size: .88rem; text-underline-offset: 3px; }
+.gut-btns .btn { padding: 7px 14px; font-size: .92rem; }

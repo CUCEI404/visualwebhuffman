@@ -114,7 +114,7 @@ HTML, CSS y JavaScript sin frameworks. Chart.js 4.4.1 (solo en `animacion.html`)
 
 Se usó **Claude** (Anthropic) como apoyo para el desarrollo del buscador de Gutenberg, el formato `.huff` v2 con CRC32, el inspector, el indicador de flujo, el visualizador de ordenamiento y este README.
 
-Validación: pruebas automáticas en Chrome (tabla anterior), revisión manual de los códigos de `abracadabra` contra el cálculo a mano y revisión del código por el equipo. `todo bien :)`.
+Validación: pruebas automáticas en Chrome , revisión manual de los códigos de `abracadabra` contra el cálculo a mano y revisión del código por el equipo. `todo bien :)`.
 
 El equipo es responsable de poder explicar todo el código entregado.
 

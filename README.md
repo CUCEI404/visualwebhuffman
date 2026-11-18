@@ -14,10 +14,10 @@ Aplicación web con dos módulos, sin servidor y sin dependencias que instalar:
 
 | Nombre | Responsabilidad principal |
 |---|---|
-| `[completar]` | `[p. ej. núcleo de Huffman y formato .huff]` |
-| `[completar]` | `[p. ej. inspector e interfaz]` |
-| `[completar]` | `[p. ej. integración con Project Gutenberg]` |
-| `[completar]` | `[p. ej. pruebas, README y deployment]` |
+| `Bryhan Francisco García Espinoza` | `Backlog + conexión con project Gutenberg` |
+| `Emmanuel Alejandro Ortiz Segura` | `Árbol dinámico y depuración de errores` |
+| `Roberto Hernández Zuñiga` | `Diseño de la página y animaciones` |
+
 
 ## Flujo de la aplicación
 
@@ -114,7 +114,7 @@ HTML, CSS y JavaScript sin frameworks. Chart.js 4.4.1 (solo en `animacion.html`)
 
 Se usó **Claude** (Anthropic) como apoyo para el desarrollo del buscador de Gutenberg, el formato `.huff` v2 con CRC32, el inspector, el indicador de flujo, el visualizador de ordenamiento y este README.
 
-Validación: pruebas automáticas en Chrome (tabla anterior), revisión manual de los códigos de `abracadabra` contra el cálculo a mano y revisión del código por el equipo. `[completar: qué integrante revisó qué parte]`.
+Validación: pruebas automáticas en Chrome (tabla anterior), revisión manual de los códigos de `abracadabra` contra el cálculo a mano y revisión del código por el equipo. `todo bien :)`.
 
 El equipo es responsable de poder explicar todo el código entregado.
 

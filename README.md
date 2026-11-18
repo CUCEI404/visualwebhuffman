@@ -7,8 +7,8 @@ Aplicación web con dos módulos, sin servidor y sin dependencias que instalar:
 | `index.html` | **Huffman Web Compressor**: busca un libro en Project Gutenberg o sube un `.txt`, lo comprime con Huffman, mide el ahorro, inspecciona el archivo `.huff` y lo descomprime verificando su integridad. |
 | `animacion.html` | **Visualizador de algoritmos de ordenamiento**: Bubble, Selection, Insertion, Gnome, Exchange, Stooge, Merge y Quick Sort, paso a paso, con métricas y comparación A vs B sobre los mismos datos. |
 
-- **URL del deployment:** `[completar: https://usuario.github.io/repositorio/]`
-- **GitHub Projects:** `[completar: URL del tablero]`
+- **URL del deployment:** `https://cucei404.github.io/visualwebhuffman/`
+- **GitHub Projects:** `https://github.com/orgs/CUCEI404/projects/2`
 
 ## Integrantes
 

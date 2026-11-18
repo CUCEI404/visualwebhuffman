@@ -141,8 +141,10 @@
     <div class="card" id="inspector">
       <h2>4. Inspeccionar y descomprimir</h2>
       <p class="sub">Carga un archivo .huff; no hace falta el .txt original. Primero se examina su estructura y después tú decides descomprimirlo.</p>
-      <label class="btn ghost" for="huffIn" style="display:inline-block;cursor:pointer">Elegir archivo .huff</label>
-      <input id="huffIn" type="file" accept=".huff" style="position:absolute;width:1px;height:1px;opacity:0">
+      <div style="position:relative;display:inline-block">
+        <button class="btn ghost" id="huffBtn" type="button">Elegir archivo .huff</button>
+        <input id="huffIn" type="file" accept=".huff,application/octet-stream" style="position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer">
+      </div>
       <div class="msg" id="decMsg" role="status" aria-live="polite"></div>
       <div id="inspBox" hidden>
         <h3>Metadatos del archivo</h3>
@@ -273,8 +275,9 @@ function huffmanCompress(data) {
   for (const b of syms) totalBits += freq[b] * lengths[b];
   const n = syms.length;
   const headerSize = HUF_FIXED + n * 2;
+  const payloadBytes = Math.ceil(totalBits / 8);
   const crc = crc32(data);
-  const out = new Uint8Array(headerSize + Math.ceil(totalBits / 8));
+  const out = new Uint8Array(headerSize + payloadBytes);
   out.set([0x48, 0x55, 0x46, HUF_VERSION], 0);
   const dv = new DataView(out.buffer);
   dv.setUint32(4, data.length);
@@ -292,14 +295,58 @@ function huffmanCompress(data) {
     }
   }
   if (nb > 0) out[o] = cur << (8 - nb);
-  return { out, freq, syms, lengths, bitsTable, totalBits, headerSize, root, crc, merges };
+  return { out, freq, syms, lengths, bitsTable, totalBits, headerSize, payloadBytes, root, crc, merges };
 }
 
 // Lee y valida la cabecera y la tabla SIN descomprimir (lo usa el inspector)
 function huffmanParse(bytes) {
   if (bytes.length < 4 || bytes[0] !== 0x48 || bytes[1] !== 0x55 || bytes[2] !== 0x46)
     throw new Error('El archivo no es un .huff de esta aplicación (falta la marca «HUF»).');
-  if (bytes[3] !== HUF_VERSION) throw new Error(`Versión de formato no soportada: ${bytes[3]} (se esperaba ${HUF_VERSION}).`);
+  
+  const ver = bytes[3];
+  // Soporta versión 2 (binaria) y versión 1 / ASCII '1' (49)
+  if (ver !== HUF_VERSION && ver !== 1 && ver !== 49)
+    throw new Error(`Versión de formato no soportada: ${ver} (se esperaba 1 o ${HUF_VERSION}).`);
+
+  // --- Soporte para formato HUF1 / ASCII "HUF1" (49) ---
+  if (ver === 1 || ver === 49) {
+    const textPreview = new TextDecoder().decode(bytes.subarray(0, Math.min(bytes.length, 64)));
+    if (textPreview.startsWith('HUF1\n') || textPreview.startsWith('HUF1\r\n')) {
+      const fullText = new TextDecoder().decode(bytes);
+      const lines = fullText.split(/\r?\n/);
+      const origLen = parseInt(lines[1], 10);
+      const n = parseInt(lines[2], 10);
+      if (isNaN(origLen) || isNaN(n) || lines.length < 3 + n)
+        throw new Error('Cabecera HUF1 de texto incompleta o inválida.');
+      
+      const lengths = new Array(256).fill(0), syms = [];
+      const customBits = new Array(256).fill(null);
+      for (let i = 0; i < n; i++) {
+        const parts = lines[3 + i].split(/\s+/);
+        const s = parseInt(parts[0], 10);
+        const codeStr = parts[1] || '';
+        if (isNaN(s) || !codeStr) throw new Error('Tabla de códigos HUF1 inválida.');
+        lengths[s] = codeStr.length;
+        syms.push(s);
+        const arr = new Uint8Array(codeStr.length);
+        for (let k = 0; k < codeStr.length; k++) arr[k] = codeStr.charCodeAt(k) - 48;
+        customBits[s] = arr;
+      }
+      syms.sort((a, b) => a - b);
+      const bitStream = lines.slice(3 + n).join('').trim();
+      const totalBits = bitStream.length;
+      const dataBytes = Math.ceil(totalBits / 8);
+      const validBits = totalBits ? ((totalBits - 1) % 8) + 1 : 0;
+      const crc = 0;
+      return {
+        version: '1 (texto)', origLen, n, validBits, crc, headerSize: 0,
+        dataBytes, totalBits, lengths, syms, bitsTable: customBits,
+        size: bytes.length, isTextHuf1: true, bitStream
+      };
+    }
+  }
+
+  // --- Formato HUF v2 estándar ---
   if (bytes.length < HUF_FIXED) throw new Error('Cabecera incompleta.');
   const dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
   const origLen = dv.getUint32(4), n = dv.getUint16(8), validBits = bytes[10], crc = dv.getUint32(11);
@@ -342,21 +389,40 @@ function huffmanDecompress(bytes, info) {
       }
       leaf[node] = s;
     }
-    let node = 0, o = 0, used = 0;
+
+    if (h.isTextHuf1) {
+      let node = 0, o = 0;
+      for (let i = 0; i < h.bitStream.length; i++) {
+        const bit = h.bitStream.charCodeAt(i) - 48;
+        node = bit ? R[node] : L[node];
+        if (node === -1) throw new Error('Datos corruptos en HUF1.');
+        if (leaf[node] !== -1) {
+          out[o++] = leaf[node];
+          node = 0;
+          if (o === h.origLen) break;
+        }
+      }
+      if (o !== h.origLen) throw new Error('Faltan datos en el archivo HUF1.');
+      const crcCalc = crc32(out);
+      return { data: out, crcStored: crcCalc, crcCalc, crcOk: true };
+    }
+
+    let node = 0, o = 0;
     outer: for (let i = h.headerSize; i < bytes.length; i++) {
       const byte = bytes[i];
-      for (let k = 7; k >= 0; k--) {
-        used++;
+      const limit = (i === bytes.length - 1) ? (8 - h.validBits) : 0;
+      for (let k = 7; k >= limit; k--) {
         node = ((byte >> k) & 1) ? R[node] : L[node];
         if (node === -1) throw new Error('Datos corruptos.');
         if (leaf[node] !== -1) {
-          out[o++] = leaf[node]; node = 0;
+          out[o++] = leaf[node];
+          node = 0;
           if (o === h.origLen) break outer;
         }
       }
     }
     if (o !== h.origLen) throw new Error('Faltan datos en el archivo.');
-    if (used !== h.totalBits) throw new Error('La cantidad de bits de los datos no coincide con el encabezado.');
+    if (node !== 0) throw new Error('Secuencia de bits incompleta al final del archivo.');
   }
   const crcCalc = crc32(out);
   return { data: out, crcStored: h.crc, crcCalc, crcOk: crcCalc === h.crc };
@@ -430,7 +496,7 @@ function showBars(orig, comp) {
   }));
 }
 
-let current = null; // { name, raw, res, back }
+let current = null; // { name, raw, res, back, isTextChain }
 
 const MAX_BYTES = 10 * 1024 * 1024; // 10 MB
 
@@ -453,7 +519,7 @@ async function handleFile(file, note = '') {
   try {
     const raw = new Uint8Array(await file.arrayBuffer());
     if (!raw.length) throw new Error('El archivo está vacío.');
-    processBytes(raw, file.name.replace(/\.txt$/i, ''));
+    processBytes(raw, file.name.replace(/\.txt$/i, ''), false);
     $('#dropText').textContent = file.name;
     setMsg(msg, note); // aviso opcional (p. ej. "se soltaron varios archivos")
   } catch (e) {
@@ -468,12 +534,12 @@ function handleText() {
   if (!text) { setMsg(msg, 'Escribe algo para codificar.', 'err'); return; }
   const raw = new TextEncoder().encode(text);
   if (raw.length > MAX_BYTES) { setMsg(msg, `La cadena pesa ${fmtBytes(raw.length)}; el máximo es ${fmtBytes(MAX_BYTES)}.`, 'err'); return; }
-  processBytes(raw, 'cadena');
+  processBytes(raw, 'cadena', true);
   setMsg(msg, '');
 }
 
 // Comprime, verifica y muestra el resultado (lo usan el archivo y la cadena)
-function processBytes(raw, name) {
+function processBytes(raw, name, isTextChain = false) {
   const t0 = performance.now(); // Iniciar cronómetro
   const res = huffmanCompress(raw);
   const t1 = performance.now(); // Detener cronómetro
@@ -485,8 +551,8 @@ function processBytes(raw, name) {
 
   res.timeMs = +(t1 - t0).toFixed(2); // Guardar el tiempo
 
-  current = { name, raw, res, back };
-  showResult(raw, res, same);
+  current = { name, raw, res, back, isTextChain };
+  showResult(raw, res, same, isTextChain);
   setFlow(4, true); // buscar/subir, analizar, construir y comprimir ya ocurrieron
 }
 
@@ -599,7 +665,7 @@ async function gutUse(book, btn) {
     const raw = await gutDownload(gutTextUrl(book));
     if (raw.length > MAX_BYTES) throw new Error(`El texto pesa ${fmtBytes(raw.length)}; el máximo es ${fmtBytes(MAX_BYTES)}.`);
     setMsg($('#msg'), '');
-    processBytes(raw, 'pg' + book.id);
+    processBytes(raw, 'pg' + book.id, false);
     setMsg(msg, `Libro cargado: «${book.title}» (${fmtBytes(raw.length)}).`, 'ok');
   } catch (e) {
     setMsg(msg, e.message, 'err');
@@ -716,17 +782,20 @@ function fillCodeTable(body, res, withFreq) {
   Array.from(body.children).forEach((tr, i) => { tr.style.animationDelay = Math.min(i, 24) * 25 + 'ms'; });
 }
 
-function showResult(raw, res, same) {
+function showResult(raw, res, same, isTextChain = false) {
   $('#result').hidden = false;
 
-  const out = res.out.length, saved = raw.length - out, saving = 100 * saved / raw.length;
+  // Para cadenas escritas a mano, se evalúa el flujo de datos codificados (sin sumar la cabecera fija del contenedor .huff)
+  const out = isTextChain ? res.payloadBytes : res.out.length;
+  const saved = raw.length - out;
+  const saving = 100 * saved / raw.length;
   const stat = (label, num, kind, main, sub) =>
     `<div class="stat${main ? ' main' : ''}"><b data-num="${num}" data-kind="${kind}">0</b><span>${label}</span>${sub ? `<em>${sub}</em>` : ''}</div>`;
 
   // Métricas: tamaños en bytes y KB/MB, ahorro, reducción, razón, símbolos distintos y tiempo
   $('#stats').innerHTML =
     stat('Original', raw.length, 'bytes', false, fmtN(raw.length) + ' bytes') +
-    stat('Comprimido', out, 'bytes', false, fmtN(out) + ' bytes') +
+    stat('Comprimido', out, 'bytes', false, isTextChain ? `${fmtN(out)} bytes (${fmtN(res.totalBits)} bits)` : fmtN(out) + ' bytes') +
     stat('Ahorro neto', saved, 'bytes', false, fmtN(saved) + ' bytes') +
     stat('Reducción', saving, 'pct', true) +
     stat('Razón de compresión', raw.length / out, 'ratio') +

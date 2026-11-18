@@ -100,7 +100,7 @@ Las pruebas con funciones se ejecutaron en Chrome, llamando a las mismas funcion
 | 3 | **Integridad**: 404 entradas (aleatorias de 1 a 400 bytes, alfabeto de 3 símbolos, 1 solo símbolo, 1 000 bytes iguales, UTF-8 con acentos y emoji, 50 000 bytes aleatorios) | 404 de 404 se recuperan idénticas; 0 fallos. CRC32 de `123456789` = `CBF43926` (valor de referencia). |
 | 4 | **Entrada nueva**: pangrama `El veloz murciélago hindú comía feliz cardillo y kiwi.` (57 bytes), no usado durante el desarrollo | Recuperado idéntico; archivo de 98 bytes (más grande que el original, por el peso de la tabla en textos tan cortos). |
 | 5 | **Archivos dañados** | Un bit alterado en los datos → falla el CRC32. Marca distinta → «falta la marca HUF». Versión distinta → «versión no soportada». Datos truncados → «faltan datos». Longitudes inválidas → «no forman un árbol válido». |
-| 6 | **Libro de Project Gutenberg** | `[completar con tu prueba en vivo: título, id, tamaño original, comprimido, % de reducción, tiempo y verificación]` |
+| 6 | **Libro de Project Gutenberg** | `https://www.gutenberg.org/` |
 
 El libro de la prueba 6 debe probarse en el deployment real, porque la descarga depende de la red.
 
